@@ -94,7 +94,9 @@ def run(checkout: Path, out: Path, python: str = sys.executable) -> dict[str, An
         srv.start(wait_seconds=120)
         client = MarcusMCPClient(srv.url, timeout=120)
         if not client.connect():
-            raise RuntimeError("could not connect to the server under test")
+            raise RuntimeError(
+                f"could not connect to the server under test: {client.last_error}"
+            )
         seeded = seed.seed_project(
             client,
             name="runner-livecheck",
