@@ -135,3 +135,29 @@ def test_connect_reports_why_it_failed(monkeypatch):
     assert client.connect() is False
     assert "HTTP 406" in client.last_error
     assert "event-stream" in client.last_error
+
+
+def test_a_redirect_is_followed_with_the_same_post_and_kept(monkeypatch):
+    """Newer servers send /mcp/ to /mcp with a 307; urllib will not replay a POST."""
+    import marcus_toolkit.client as mod
+
+    seen = []
+
+    def fake_urlopen(req, timeout=None):
+        seen.append(req.full_url)
+        if req.full_url.endswith("/mcp/"):
+            raise mod.urllib.error.HTTPError(
+                req.full_url,
+                307,
+                "Temporary Redirect",
+                {"Location": "http://127.0.0.1:1/mcp"},
+                io.BytesIO(b""),
+            )
+        return _Resp(INIT_OK if b"initialize" in req.data else b"")
+
+    monkeypatch.setattr(mod.urllib.request, "urlopen", fake_urlopen)
+    client = MarcusMCPClient("http://127.0.0.1:1/mcp")
+    assert client.connect() is True
+    assert client.url == "http://127.0.0.1:1/mcp"
+    assert seen[:2] == ["http://127.0.0.1:1/mcp/", "http://127.0.0.1:1/mcp"]
+    assert not seen[2].endswith("/mcp/")

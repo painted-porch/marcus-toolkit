@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any
 
@@ -150,16 +151,48 @@ class MarcusMCPClient:
             headers["MCP-Protocol-Version"] = self._protocol_version
         return headers
 
+    def _send(self, payload: dict[str, Any]) -> tuple[str, bytes]:
+        """
+        POST once, following a 307 or 308 with the same method and body.
+
+        Older servers redirect ``/mcp`` to ``/mcp/``; newer ones redirect the other
+        way. ``urllib`` refuses to replay a POST through a redirect, so it is done
+        here, and the endpoint the server named is kept for every later call.
+
+        Parameters
+        ----------
+        payload : dict[str, Any]
+            The JSON-RPC envelope.
+
+        Returns
+        -------
+        tuple[str, bytes]
+            The ``mcp-session-id`` header (``""`` when absent) and the body.
+        """
+        for _ in range(4):
+            req = urllib.request.Request(
+                self._url,
+                data=json.dumps(payload).encode(),
+                headers=self._headers(),
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(
+                    req, timeout=self._timeout
+                ) as resp:  # nosec B310
+                    session = resp.headers.get("mcp-session-id", "") or ""
+                    body: bytes = resp.read()
+                    return session, body
+            except urllib.error.HTTPError as exc:
+                location = exc.headers.get("Location") if exc.headers else None
+                if exc.code in (307, 308) and location:
+                    self._url = urllib.parse.urljoin(self._url, location)
+                    continue
+                raise
+        raise urllib.error.URLError("too many redirects from the MCP endpoint")
+
     def _post(self, payload: dict[str, Any]) -> bytes:
-        req = urllib.request.Request(
-            self._url,
-            data=json.dumps(payload).encode(),
-            headers=self._headers(),
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=self._timeout) as resp:  # nosec B310
-            body: bytes = resp.read()
-            return body
+        return self._send(payload)[1]
 
     def connect(self) -> bool:
         """
@@ -183,17 +216,7 @@ class MarcusMCPClient:
         self._session_id = ""
         self._protocol_version = ""
         try:
-            req = urllib.request.Request(
-                self._url,
-                data=json.dumps(init_payload).encode(),
-                headers=self._headers(),
-                method="POST",
-            )
-            with urllib.request.urlopen(
-                req, timeout=self._timeout
-            ) as resp:  # nosec B310
-                session = resp.headers.get("mcp-session-id", "") or ""
-                body: bytes = resp.read()
+            session, body = self._send(init_payload)
             for envelope in parse_mcp_envelopes(body):
                 if envelope.get("error"):
                     self.last_error = f"initialize refused: {envelope['error']}"
