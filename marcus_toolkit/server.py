@@ -6,7 +6,8 @@ What every extension's run script did by hand, once:
 * a config with the SQLite provider, the model switched off and an empty key
   (a placeholder key still fires one real call on startup: issue #905 and
   ``~/marcus-experiments/numeric-verifier/RESULTS.md``, "Incident"), the
-  context, memory and events features off, and its own HTTP port;
+  context and events features on (opinions and decisions need them), memory
+  and visibility off, and its own HTTP port;
 * an environment with every model-provider key stripped, its own
   ``MARCUS_DATA_DIR`` and ``MARCUS_CONFIG``, telemetry off, and
   ``PYTHONPATH`` at the pinned checkout;
@@ -127,9 +128,14 @@ def write_config(
         "single_project_mode": single_project_mode,
         "auto_find_board": False,
         "ai": {"provider": "anthropic", "enabled": False, "anthropic_api_key": ""},
+        # The context feature is what opinions, decisions and task context ride
+        # on; without it every give_opinion is refused with "Context system not
+        # enabled" and every opinions read is empty (found by the wargame's
+        # deliberation rehearsal, 2026-11-11). Events feed the record. Memory
+        # and visibility stay off: nothing a run needs, and memory is a model path.
         "features": {
-            "events": False,
-            "context": False,
+            "events": True,
+            "context": True,
             "memory": False,
             "visibility": False,
         },

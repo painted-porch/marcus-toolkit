@@ -30,7 +30,12 @@ def test_write_config_switches_the_model_off_with_an_empty_key(tmp_path):
     assert config["kanban"]["sqlite_db_path"].endswith("kanban.db")
     assert config["transport"]["http_port"] == 4777
     assert config["single_project_mode"] is False
-    assert all(v is False for v in config["features"].values())
+    assert config["features"] == {
+        "events": True,
+        "context": True,
+        "memory": False,
+        "visibility": False,
+    }
 
 
 def test_build_env_strips_every_provider_key_and_sets_the_paths(tmp_path):

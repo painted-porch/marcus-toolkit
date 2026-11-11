@@ -151,21 +151,32 @@ export function createBoard({
         return reply;
     };
 
+    // Every write needs a registered agent: the kernel records an opinion or a
+    // decision against the project the agent registered to (ADR-0013 K6), and
+    // refuses one from an agent it has not seen. A commander that answers a
+    // candidate before its first pull was refused for exactly this
+    // (no-hand rehearsal 20261111T111205), so the registration is ensured here
+    // rather than left to the pull.
+    const registered = async call => {
+        const refused = await ensureRegistered();
+        return refused ?? call();
+    };
+
     const opinion = ({ subject, what, why = '', impact = '', aboutTask = false }) =>
-        board('give_opinion', { agent_id: agent, subject, what, why, impact, ...(aboutTask && state.task ? { task_id: state.task.id } : {}) });
+        registered(() => board('give_opinion', { agent_id: agent, subject, what, why, impact, ...(aboutTask && state.task ? { task_id: state.task.id } : {}) }));
 
     /** A decision is what the commander did and why; it never counts toward a candidate. */
     const decide = ({ what, why, subject, kind = 'decision' }) =>
-        board('log_decision', {
+        registered(() => board('log_decision', {
             agent_id: agent,
             decision: `${kind === 'decision' ? 'DECISION' : 'THOUGHT'}: ${String(what).trim().replace(/\.+$/, '')} because ${String(why).trim().replace(/\.+$/, '')}.`,
             task_id: state.task?.id ?? '',
             ...(subject?.trim() ? { subject: subject.trim() } : {}),
-        });
+        }));
 
     const artifact = ({ filename, content, description = '', artifact_type = 'world-state' }) =>
         state.task
-            ? board('log_artifact', { task_id: state.task.id, filename, content, artifact_type, project_root: projectRoot, description })
+            ? registered(() => board('log_artifact', { task_id: state.task.id, filename, content, artifact_type, project_root: projectRoot, description }))
             : Promise.resolve({ success: false, error: 'You hold no task.' });
 
     const opinions = ({ limit = 50, windowMinutes = null, kind = null } = {}) =>

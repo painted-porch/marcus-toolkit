@@ -89,18 +89,30 @@ test('a decision is recorded as what because why, with an optional subject, neve
     const client = fakeClient({ log_decision: { success: true } });
     const b = createBoard({ agent: 'blue-1', projectId: 'p-blue', client });
     await b.decide({ what: 'withdrew block 3 across the ford', why: 'losses passed 15% in one turn', subject: 'ford.north' });
-    assert.deepEqual(client.calls[0].args, { agent_id: 'blue-1', decision: 'DECISION: withdrew block 3 across the ford because losses passed 15% in one turn.', task_id: '', subject: 'ford.north' });
+    const decision = client.calls.find(c => c.tool === 'log_decision');
+    assert.deepEqual(decision.args, { agent_id: 'blue-1', decision: 'DECISION: withdrew block 3 across the ford because losses passed 15% in one turn.', task_id: '', subject: 'ford.north' });
 });
 
 test('opinions and artifacts use the project and the task held', async () => {
-    const client = fakeClient({ give_opinion: { success: true }, log_artifact: { success: true }, query_project_history: { success: true, data: [] } });
+    const client = fakeClient({ register_agent: { success: true }, give_opinion: { success: true }, log_artifact: { success: true }, query_project_history: { success: true, data: [] } });
     const b = createBoard({ agent: 'blue-1', projectId: 'p-blue', client, projectRoot: '/w', load: () => ({ task: { id: 't1', name: 'n' }, leaseEpoch: 1 }) });
     await b.opinion({ subject: 'enemy.massing.north', what: 'red density rising north of the ford', why: 'umpire reports contact', aboutTask: true });
-    assert.equal(client.calls[0].args.task_id, 't1');
+    assert.equal(client.calls.find(c => c.tool === 'give_opinion').args.task_id, 't1');
     await b.artifact({ filename: 'orders-turn-3.txt', content: 'hold' });
-    assert.equal(client.calls[1].args.project_root, '/w');
+    assert.equal(client.calls.find(c => c.tool === 'log_artifact').args.project_root, '/w');
     await b.opinions({ limit: 5 });
-    assert.deepEqual(client.calls[2].args, { project_id: 'p-blue', query_type: 'opinions', limit: 5 });
+    assert.deepEqual(client.calls.filter(c => c.tool === 'query_project_history').at(-1).args, { project_id: 'p-blue', query_type: 'opinions', limit: 5 });
     await b.decisions();
-    assert.equal(client.calls[3].args.kind, 'decision');
+    assert.equal(client.calls.at(-1).args.kind, 'decision');
+});
+
+test('an opinion or a decision before any pull registers the agent first', async () => {
+    const client = fakeClient({ register_agent: { success: true }, give_opinion: { success: true }, log_decision: { success: true }, query_project_history: { success: true, data: [] } });
+    const b = createBoard({ agent: 'blue-1', projectId: 'p-blue', client });
+    await b.opinion({ subject: 'candidate.x', what: 'support' });
+    assert.equal(client.calls[0].tool, 'register_agent');
+    assert.equal(client.calls[0].args.project_id, 'p-blue');
+    assert.equal(client.calls.filter(c => c.tool === 'give_opinion').length, 1);
+    await b.decide({ what: 'held', why: 'ordered' });
+    assert.equal(client.calls.filter(c => c.tool === 'register_agent').length, 1, 'registered once');
 });

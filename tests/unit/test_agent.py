@@ -149,7 +149,9 @@ def test_decide_and_opinion_shapes():
     )
     a = agent.BoardAgent(client, "blue-1", "p")
     a.decide("withdrew block 3", "losses passed 15%", subject="ford.north")
-    assert client.calls[0][1] == {
+    assert client.calls[0][0] == "register_agent"
+    decision = next(args for name, args in client.calls if name == "log_decision")
+    assert decision == {
         "agent_id": "blue-1",
         "decision": "DECISION: withdrew block 3 because losses passed 15%.",
         "task_id": "",
@@ -157,7 +159,8 @@ def test_decide_and_opinion_shapes():
     }
     a.task = {"id": "t1", "name": "n"}
     a.opinion("enemy.north", "red density rising", "umpire", about_task=True)
-    assert client.calls[1][1]["task_id"] == "t1"
+    opinion = next(args for name, args in client.calls if name == "give_opinion")
+    assert opinion["task_id"] == "t1"
 
 
 def test_a_missing_reply_is_a_transport_error_not_a_crash(tmp_path):
@@ -171,3 +174,21 @@ def test_a_missing_reply_is_a_transport_error_not_a_crash(tmp_path):
     assert log[0]["outcome"] == "transport_error"
     assert agent.jsonl_logger(tmp_path / "x" / "calls.jsonl")({"a": 1}) is None
     assert Path(tmp_path / "x" / "calls.jsonl").read_text() == '{"a": 1}\n'
+
+
+def test_an_opinion_before_any_pull_registers_first():
+    """The kernel records an opinion against the agent's registered project; so register first."""
+    client = FakeClient(
+        {
+            "register_agent": {"success": True},
+            "give_opinion": {"success": True},
+            "log_decision": {"success": True},
+            "query_project_history": {"success": True, "data": []},
+        }
+    )
+    a = agent.BoardAgent(client, "blue-1", "p-blue")
+    a.opinion("candidate.x", "support")
+    assert client.calls[0][0] == "register_agent"
+    assert [n for n, _ in client.calls if n == "give_opinion"] == ["give_opinion"]
+    a.decide("held", "ordered")
+    assert [n for n, _ in client.calls if n == "register_agent"] == ["register_agent"]

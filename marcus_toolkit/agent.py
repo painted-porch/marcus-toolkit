@@ -348,6 +348,13 @@ class BoardAgent:
             self._remember()
         return reply
 
+    def _registered(self) -> dict[str, Any] | None:
+        """Register first if needed; return the refusal when registration fails."""
+        if self.registered:
+            return None
+        reply = self.register()
+        return reply if reply.get("success") is False else None
+
     def opinion(
         self,
         subject: str,
@@ -356,7 +363,10 @@ class BoardAgent:
         impact: str = "",
         about_task: bool = False,
     ) -> dict[str, Any]:
-        """Leave a marker on the board."""
+        """Leave a marker on the board; registers first when needed (K6)."""
+        refused = self._registered()
+        if refused is not None:
+            return refused
         args: dict[str, Any] = {
             "agent_id": self.agent_id,
             "subject": subject,
@@ -372,6 +382,9 @@ class BoardAgent:
         self, what: str, why: str, subject: str | None = None, kind: str = "decision"
     ) -> dict[str, Any]:
         """Record what the agent did and why; never counted toward a candidate."""
+        refused = self._registered()
+        if refused is not None:
+            return refused
         mark = "DECISION" if kind == "decision" else "THOUGHT"
         args: dict[str, Any] = {
             "agent_id": self.agent_id,
