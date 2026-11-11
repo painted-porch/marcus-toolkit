@@ -1,11 +1,11 @@
-"""Unit tests for marcus_runner.measure."""
+"""Unit tests for marcus_toolkit.measure."""
 
 import json
 import sqlite3
 
 import pytest
 
-from marcus_runner import measure
+from marcus_toolkit import measure
 
 pytestmark = pytest.mark.unit
 

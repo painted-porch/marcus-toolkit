@@ -89,7 +89,7 @@ export class McpHttpClient {
         this.timeoutMs = timeoutMs;
         this.retries = retries;
         this.retryDelayMs = retryDelayMs;
-        this.clientName = clientName ?? 'marcus-runner';
+        this.clientName = clientName ?? 'marcus-toolkit';
         this.sessionId = '';
         this.nextId = 0;
     }

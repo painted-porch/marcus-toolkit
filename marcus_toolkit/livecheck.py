@@ -10,7 +10,7 @@ before and after; the server log carries no model-provider host.
 
 Usage::
 
-    python -m marcus_runner.livecheck --checkout ~/dev/marcus --out livecheck-runs
+    python -m marcus_toolkit.livecheck --checkout ~/dev/marcus --out livecheck-runs
 """
 
 from __future__ import annotations
@@ -78,7 +78,7 @@ def run(checkout: Path, out: Path, python: str = sys.executable) -> dict[str, An
     rec.write("marcus-version.txt", integrity.format_version(version))
     for key, value in [
         ("run_at", rec.stamp),
-        ("kind", "marcus-runner live check"),
+        ("kind", "marcus-toolkit live check"),
         ("port", port),
         ("checkout", f"{checkout} @ {version['commit']} ({version['dirty']} dirty)"),
         ("ai", "off, keys stripped"),

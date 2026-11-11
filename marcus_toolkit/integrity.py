@@ -240,7 +240,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         return 0
     print(
-        "usage: marcus-runner-hash <dir> <file,file,...>"
+        "usage: marcus-toolkit-hash <dir> <file,file,...>"
         " | --committed <repo> <file,file,...> [subdir]",
         file=sys.stderr,
     )

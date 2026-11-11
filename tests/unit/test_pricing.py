@@ -1,8 +1,8 @@
-"""Unit tests for marcus_runner.pricing."""
+"""Unit tests for marcus_toolkit.pricing."""
 
 import pytest
 
-from marcus_runner import pricing
+from marcus_toolkit import pricing
 
 pytestmark = pytest.mark.unit
 

@@ -1,11 +1,11 @@
-"""Unit tests for marcus_runner.agent."""
+"""Unit tests for marcus_toolkit.agent."""
 
 import json
 from pathlib import Path
 
 import pytest
 
-from marcus_runner import agent
+from marcus_toolkit import agent
 
 pytestmark = pytest.mark.unit
 

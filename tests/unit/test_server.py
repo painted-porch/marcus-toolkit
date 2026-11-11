@@ -1,11 +1,11 @@
-"""Unit tests for marcus_runner.server (no server is started here)."""
+"""Unit tests for marcus_toolkit.server (no server is started here)."""
 
 import json
 from pathlib import Path
 
 import pytest
 
-from marcus_runner import server
+from marcus_toolkit import server
 
 pytestmark = pytest.mark.unit
 

@@ -20,7 +20,7 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: black --check .
-      - run: mypy marcus_runner
+      - run: mypy marcus_toolkit
       - run: pytest -m unit
 
   node:
@@ -47,7 +47,7 @@ jobs:
           python-version: "3.11"
       - run: pip install -e ./marcus
       - run: pip install -e .
-      - run: python -m marcus_runner.livecheck --checkout ./marcus --out livecheck-runs
+      - run: python -m marcus_toolkit.livecheck --checkout ./marcus --out livecheck-runs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,10 +1,10 @@
-"""Unit tests for marcus_runner.watchdog."""
+"""Unit tests for marcus_toolkit.watchdog."""
 
 from pathlib import Path
 
 import pytest
 
-from marcus_runner import watchdog
+from marcus_toolkit import watchdog
 
 pytestmark = pytest.mark.unit
 

@@ -1,8 +1,8 @@
-"""Unit tests for marcus_runner.client."""
+"""Unit tests for marcus_toolkit.client."""
 
 import pytest
 
-from marcus_runner.client import (
+from marcus_toolkit.client import (
     MarcusClientError,
     MarcusMCPClient,
     parse_mcp_tool_result,

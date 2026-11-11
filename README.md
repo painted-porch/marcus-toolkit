@@ -1,4 +1,4 @@
-# marcus-runner
+# marcus-toolkit
 
 The run-side toolbox that Marcus extensions share.
 
@@ -12,17 +12,17 @@ This package is that scaffolding, built once (the inventory and the reasoning ar
 
 | Module | What it does |
 | --- | --- |
-| `marcus_runner.server` | a **server under test**: a private Marcus started for one run with every model-provider key stripped from its environment and the model switched off with an empty key, so the run can spend nothing by construction; refuses a port someone else holds and proves the port's owner is this run's server |
-| `marcus_runner.seed` | seeds a project with exactly the tasks named, through `create_project(options.tasks)`, and refuses before the call what the board would mis-handle: an unknown spec key, a `build`-family label, a dependency naming no task, a project name containing "test" |
-| `marcus_runner.watchdog` | stops a run the moment its spend reaches the approved line; the line is re-read on every poll when it comes from a file |
-| `marcus_runner.pricing`, `marcus_runner.usage` | one price table; usage rows read from pi's transcripts or from `<state>/<agent>/usage.jsonl`, one row per model call, which any runtime can write |
-| `marcus_runner.sampler` | reads the board from outside every few seconds and applies the drain verdict's claimability rule, so frontier width has a time series |
-| `marcus_runner.integrity` | hashes the files that execute, hashes the same files as committed, records a checkout's version |
-| `marcus_runner.record` | the run record: `runs/<stamp>/`, `run-config.txt`, JSONL streams, copies |
-| `marcus_runner.measure` | pulls and the idle-poll ratio, the kernel's frontier series, the sampler's series, board counts from a copy of `kanban.db` |
-| `marcus_runner.client`, `marcus_runner.agent` | the MCP client and a pull-loop agent shell in Python |
+| `marcus_toolkit.server` | a **server under test**: a private Marcus started for one run with every model-provider key stripped from its environment and the model switched off with an empty key, so the run can spend nothing by construction; refuses a port someone else holds and proves the port's owner is this run's server |
+| `marcus_toolkit.seed` | seeds a project with exactly the tasks named, through `create_project(options.tasks)`, and refuses before the call what the board would mis-handle: an unknown spec key, a `build`-family label, a dependency naming no task, a project name containing "test" |
+| `marcus_toolkit.watchdog` | stops a run the moment its spend reaches the approved line; the line is re-read on every poll when it comes from a file |
+| `marcus_toolkit.pricing`, `marcus_toolkit.usage` | one price table; usage rows read from pi's transcripts or from `<state>/<agent>/usage.jsonl`, one row per model call, which any runtime can write |
+| `marcus_toolkit.sampler` | reads the board from outside every few seconds and applies the drain verdict's claimability rule, so frontier width has a time series |
+| `marcus_toolkit.integrity` | hashes the files that execute, hashes the same files as committed, records a checkout's version |
+| `marcus_toolkit.record` | the run record: `runs/<stamp>/`, `run-config.txt`, JSONL streams, copies |
+| `marcus_toolkit.measure` | pulls and the idle-poll ratio, the kernel's frontier series, the sampler's series, board counts from a copy of `kanban.db` |
+| `marcus_toolkit.client`, `marcus_toolkit.agent` | the MCP client and a pull-loop agent shell in Python |
 | `node/` | the same client in Node: `mcp-http.js` and `board.js` |
-| `marcus_runner.livecheck` | the toolbox's own live check against a real Marcus checkout |
+| `marcus_toolkit.livecheck` | the toolbox's own live check against a real Marcus checkout |
 
 Nothing in this package imports Marcus's own code.
 It talks to a server over MCP and reads the files a run leaves behind, which is all an extension may do (`docs/architecture/extension-contract.md` in the Marcus repository).
@@ -39,7 +39,7 @@ For the Node client, import `node/board.js` and `node/mcp-http.js` directly; the
 ## The live check
 
 ```bash
-python -m marcus_runner.livecheck --checkout ~/dev/marcus --out livecheck-runs
+python -m marcus_toolkit.livecheck --checkout ~/dev/marcus --out livecheck-runs
 ```
 
 Starts a server under test from that checkout, seeds two tasks (the second depending on the first), runs one scripted agent through register, pull, report, pull, report, drain, reads the board from outside before and after, and writes `livecheck-runs/<stamp>/VERDICT.json`.

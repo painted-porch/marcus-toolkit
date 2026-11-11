@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "marcus-runner"
+name = "marcus-toolkit"
 version = "0.1.0"
 description = "The run-side toolbox Marcus extensions share: a server under test, seeding, run guards, the cost watchdog, the board sampler, measures, the run record, and a pull-loop agent shell"
 readme = "README.md"
@@ -15,13 +15,13 @@ dependencies = []
 dev = ["pytest==7.4.3", "mypy==1.19.1", "ruff==0.15.5", "black==26.3.0"]
 
 [project.scripts]
-marcus-runner-watchdog = "marcus_runner.watchdog:main"
-marcus-runner-sampler = "marcus_runner.sampler:main"
-marcus-runner-hash = "marcus_runner.integrity:main"
-marcus-runner-livecheck = "marcus_runner.livecheck:main"
+marcus-toolkit-watchdog = "marcus_toolkit.watchdog:main"
+marcus-toolkit-sampler = "marcus_toolkit.sampler:main"
+marcus-toolkit-hash = "marcus_toolkit.integrity:main"
+marcus-toolkit-livecheck = "marcus_toolkit.livecheck:main"
 
 [tool.setuptools]
-packages = ["marcus_runner"]
+packages = ["marcus_toolkit"]
 
 [tool.black]
 line-length = 88
@@ -34,7 +34,7 @@ line-length = 88
 select = ["E", "F", "I", "B", "UP"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["marcus_runner"]
+known-first-party = ["marcus_toolkit"]
 
 [tool.mypy]
 python_version = "3.11"

@@ -64,7 +64,7 @@ def resolve(model: str) -> str:
     name = ALIASES.get(name, name)
     if name not in PRICES:
         raise KeyError(
-            f"no price for model {model!r}; add it to marcus_runner.pricing.PRICES"
+            f"no price for model {model!r}; add it to marcus_toolkit.pricing.PRICES"
         )
     return name
 

@@ -136,7 +136,7 @@ class MarcusMCPClient:
             "params": {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {},
-                "clientInfo": {"name": "marcus-runner", "version": "0.1"},
+                "clientInfo": {"name": "marcus-toolkit", "version": "0.1"},
             },
         }
         try:

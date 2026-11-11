@@ -1,8 +1,8 @@
-"""Unit tests for marcus_runner.integrity."""
+"""Unit tests for marcus_toolkit.integrity."""
 
 import pytest
 
-from marcus_runner import integrity
+from marcus_toolkit import integrity
 
 pytestmark = pytest.mark.unit
 

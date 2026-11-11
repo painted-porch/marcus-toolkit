@@ -1,11 +1,11 @@
-"""Unit tests for marcus_runner.record."""
+"""Unit tests for marcus_toolkit.record."""
 
 import json
 import re
 
 import pytest
 
-from marcus_runner import record
+from marcus_toolkit import record
 
 pytestmark = pytest.mark.unit
 
