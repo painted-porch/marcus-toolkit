@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "marcus-runner"
+version = "0.1.0"
+description = "The run-side toolbox Marcus extensions share: a server under test, seeding, run guards, the cost watchdog, the board sampler, measures, the run record, and a pull-loop agent shell"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "mypy>=1.8", "ruff>=0.5", "black>=24"]
+
+[project.scripts]
+marcus-runner-watchdog = "marcus_runner.watchdog:main"
+marcus-runner-sampler = "marcus_runner.sampler:main"
+marcus-runner-hash = "marcus_runner.integrity:main"
+marcus-runner-livecheck = "marcus_runner.livecheck:main"
+
+[tool.setuptools]
+packages = ["marcus_runner"]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+disallow_untyped_defs = true
+no_implicit_optional = true

@@ -1,0 +1,9 @@
+{
+  "name": "@painted-porch/marcus-client",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "The Node board client for a Marcus extension's agents: an MCP-over-HTTP client and the pull loop as a plain object, lifted from marcus-minecraft",
+  "main": "board.js",
+  "scripts": { "test": "node --test test/*.test.js" }
+}

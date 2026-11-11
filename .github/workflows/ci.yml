@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  # The Marcus commit the live check runs against. Bump it on purpose, in its own PR.
+  MARCUS_REF: 0dfc3af0
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: black --check .
+      - run: mypy marcus_runner
+      - run: pytest -m unit
+
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: cd node && node --test test/*.test.js
+
+  live-check:
+    runs-on: ubuntu-latest
+    needs: [python]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: painted-porch/marcus
+          ref: ${{ env.MARCUS_REF }}
+          path: marcus
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ./marcus
+      - run: pip install -e .
+      - run: python -m marcus_runner.livecheck --checkout ./marcus --out livecheck-runs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: livecheck-run
+          path: livecheck-runs
