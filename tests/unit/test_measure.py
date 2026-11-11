@@ -4,6 +4,7 @@ import json
 import sqlite3
 
 import pytest
+
 from marcus_runner import measure
 
 pytestmark = pytest.mark.unit

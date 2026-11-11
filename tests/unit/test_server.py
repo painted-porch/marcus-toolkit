@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from marcus_runner import server
 
 pytestmark = pytest.mark.unit

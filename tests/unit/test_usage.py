@@ -3,6 +3,7 @@
 import json
 
 import pytest
+
 from marcus_runner import usage
 
 pytestmark = pytest.mark.unit

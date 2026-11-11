@@ -18,9 +18,10 @@ which Marcus creates itself; counts read back from the board are seeded + 1.
 from __future__ import annotations
 
 import time
-from pathlib import Path
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence
+from pathlib import Path
+from typing import Any
 
 from .client import MarcusMCPClient
 
@@ -46,12 +47,12 @@ class SeedResult:
     """What seeding produced."""
 
     project_id: str
-    task_names: List[str]
-    total_tasks: Optional[int]
-    reply: Dict[str, Any] = field(default_factory=dict)
+    task_names: list[str]
+    total_tasks: int | None
+    reply: dict[str, Any] = field(default_factory=dict)
 
 
-def validate_specs(specs: Sequence[Dict[str, Any]]) -> None:
+def validate_specs(specs: Sequence[dict[str, Any]]) -> None:
     """
     Refuse a task list the board would mis-handle.
 
@@ -107,9 +108,9 @@ def seed_project(
     *,
     name: str,
     description: str,
-    tasks: Sequence[Dict[str, Any]],
+    tasks: Sequence[dict[str, Any]],
     project_root: Path,
-    objective: Optional[str] = None,
+    objective: str | None = None,
     wait_seconds: float = 120.0,
     sleep_seconds: float = 2.0,
 ) -> SeedResult:
@@ -156,7 +157,7 @@ def seed_project(
     validate_specs(tasks)
     root = Path(project_root).resolve()
     root.mkdir(parents=True, exist_ok=True)
-    options: Dict[str, Any] = {
+    options: dict[str, Any] = {
         "provider": "sqlite",
         "complexity": "prototype",
         "path": "direct",
@@ -172,7 +173,7 @@ def seed_project(
     project_id = reply.get("project_id")
     if not project_id:
         raise RuntimeError(f"create_project returned no project id: {reply}")
-    total: Optional[int] = None
+    total: int | None = None
     deadline = time.time() + wait_seconds
     while time.time() < deadline:
         status = (client.call_tool("get_project_status") or {}).get("project") or {}

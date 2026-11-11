@@ -3,6 +3,7 @@
 import sqlite3
 
 import pytest
+
 from marcus_runner import sampler
 
 pytestmark = pytest.mark.unit

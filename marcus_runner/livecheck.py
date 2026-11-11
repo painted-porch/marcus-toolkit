@@ -19,16 +19,16 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from . import integrity, measure, record, sampler, seed, server
 from .agent import BoardAgent, jsonl_logger
 from .client import MarcusMCPClient
 
-TASKS: List[Dict[str, Any]] = [
+TASKS: list[dict[str, Any]] = [
     {
         "name": "Say where you are",
-        "description": "Report your position on the board; there is nothing else to do.",
+        "description": "Report your position on the board; nothing else to do.",
         "labels": ["livecheck", "seeded"],
         "completion_criteria": ["The completion report says where the agent is"],
         "estimated_hours": 0.1,
@@ -46,7 +46,7 @@ TASKS: List[Dict[str, Any]] = [
 ]
 
 
-def run(checkout: Path, out: Path, python: str = sys.executable) -> Dict[str, Any]:
+def run(checkout: Path, out: Path, python: str = sys.executable) -> dict[str, Any]:
     """
     Run the live check and return its verdict.
 
@@ -88,8 +88,8 @@ def run(checkout: Path, out: Path, python: str = sys.executable) -> Dict[str, An
     srv = server.ServerUnderTest(
         checkout, data_dir, config_path, port, rec.dir / "server.log", python=python
     )
-    checks: Dict[str, bool] = {}
-    detail: Dict[str, Any] = {}
+    checks: dict[str, bool] = {}
+    detail: dict[str, Any] = {}
     try:
         srv.start(wait_seconds=120)
         client = MarcusMCPClient(srv.url, timeout=120)
@@ -203,7 +203,7 @@ def run(checkout: Path, out: Path, python: str = sys.executable) -> Dict[str, An
     return verdict
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """CLI entry point; exit 0 on PASS."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(

@@ -1,6 +1,7 @@
 """Unit tests for marcus_runner.seed."""
 
 import pytest
+
 from marcus_runner import seed
 
 pytestmark = pytest.mark.unit

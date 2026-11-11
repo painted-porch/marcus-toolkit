@@ -18,15 +18,16 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections import Counter
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any
 
 
-def read_jsonl(path: Path) -> List[Dict[str, Any]]:
+def read_jsonl(path: Path) -> list[dict[str, Any]]:
     """Every parseable row of a JSONL file; a missing file is an empty list."""
     if not path.is_file():
         return []
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     for line in path.read_text(errors="replace").splitlines():
         try:
             row = json.loads(line)
@@ -37,7 +38,7 @@ def read_jsonl(path: Path) -> List[Dict[str, Any]]:
     return rows
 
 
-def read_calls(state_dir: Path) -> List[Dict[str, Any]]:
+def read_calls(state_dir: Path) -> list[dict[str, Any]]:
     """
     Every board call every agent recorded, oldest first.
 
@@ -56,14 +57,14 @@ def read_calls(state_dir: Path) -> List[Dict[str, Any]]:
         set(state_dir.glob("*/board-calls.jsonl"))
         | set(state_dir.glob("*/*/board-calls.jsonl"))
     )
-    calls: List[Dict[str, Any]] = []
+    calls: list[dict[str, Any]] = []
     for file in files:
         calls.extend(read_jsonl(file))
     calls.sort(key=lambda c: str(c.get("at", "")))
     return calls
 
 
-def pulls(calls: Iterable[Dict[str, Any]]) -> Dict[str, Any]:
+def pulls(calls: Iterable[dict[str, Any]]) -> dict[str, Any]:
     """
     Count the pulls and compute the idle-poll ratio.
 
@@ -93,12 +94,12 @@ def pulls(calls: Iterable[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
-def frontier_series(calls: Iterable[Dict[str, Any]]) -> List[Tuple[str, int]]:
+def frontier_series(calls: Iterable[dict[str, Any]]) -> list[tuple[str, int]]:
     """Extract the frontier width the kernel reported on each non-assignment pull.
 
     Returns ``(agent, width)`` pairs.
     """
-    series: List[Tuple[str, int]] = []
+    series: list[tuple[str, int]] = []
     for call in calls:
         if call.get("tool") != "request_next_task":
             continue
@@ -110,7 +111,7 @@ def frontier_series(calls: Iterable[Dict[str, Any]]) -> List[Tuple[str, int]]:
     return series
 
 
-def summarize(values: List[int]) -> Dict[str, Any]:
+def summarize(values: list[int]) -> dict[str, Any]:
     """Summarise a series: samples, min, max and mean; ``None`` values when empty."""
     if not values:
         return {"samples": 0, "min": None, "max": None, "mean": None}
@@ -122,12 +123,12 @@ def summarize(values: List[int]) -> Dict[str, Any]:
     }
 
 
-def board_calls(calls: Iterable[Dict[str, Any]]) -> Dict[str, int]:
+def board_calls(calls: Iterable[dict[str, Any]]) -> dict[str, int]:
     """How many calls of each tool the agents made."""
     return dict(Counter(str(c.get("tool")) for c in calls))
 
 
-def board_from_db(kanban_db: Path, project_id: str) -> Dict[str, Any]:
+def board_from_db(kanban_db: Path, project_id: str) -> dict[str, Any]:
     """
     Read the board's counts from a copy of ``kanban.db``.
 
@@ -163,7 +164,7 @@ def board_from_db(kanban_db: Path, project_id: str) -> Dict[str, Any]:
     }
 
 
-def sampled_frontier(samples: Iterable[Dict[str, Any]]) -> Dict[str, Any]:
+def sampled_frontier(samples: Iterable[dict[str, Any]]) -> dict[str, Any]:
     """Summarise the sampler's frontier series, keeping the series."""
     widths = [
         int(s["tasks_claimable"])
@@ -176,8 +177,8 @@ def sampled_frontier(samples: Iterable[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 def utilization(
-    samples: Iterable[Dict[str, Any]], agents: Optional[int] = None
-) -> Dict[str, Any]:
+    samples: Iterable[dict[str, Any]], agents: int | None = None
+) -> dict[str, Any]:
     """How many agents held a task at each sample, and the mean fraction busy."""
     holding = [
         len(s.get("holders") or {})

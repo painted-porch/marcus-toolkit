@@ -17,8 +17,8 @@ from __future__ import annotations
 import hashlib
 import subprocess  # nosec B404 - git on a path we own, fixed argv
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
 
 
 def tree_hash(root: Path, files: Sequence[str]) -> str:
@@ -107,7 +107,7 @@ def committed_hash(
     return digest.hexdigest()
 
 
-def uncommitted(repo: Path, files: Sequence[str], subdir: str = "") -> List[str]:
+def uncommitted(repo: Path, files: Sequence[str], subdir: str = "") -> list[str]:
     """
     Which of the files have uncommitted changes in ``repo``.
 
@@ -146,7 +146,7 @@ def uncommitted(repo: Path, files: Sequence[str], subdir: str = "") -> List[str]
     return [line[3:].strip() for line in out.splitlines() if line.strip()]
 
 
-def git_version(checkout: Path) -> Dict[str, str]:
+def git_version(checkout: Path) -> dict[str, str]:
     """
     Read the version record of a checkout: what ``marcus-version.txt`` holds.
 
@@ -182,7 +182,7 @@ def git_version(checkout: Path) -> Dict[str, str]:
     }
 
 
-def format_version(version: Dict[str, str]) -> str:
+def format_version(version: dict[str, str]) -> str:
     """Render :func:`git_version` the way the Minecraft run records print it."""
     return (
         f"checkout: {version['checkout']}\nbranch:   {version['branch']}\n"
@@ -216,7 +216,7 @@ def contains_commit(checkout: Path, sha: str) -> bool:
         return False
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """Print the hash of a directory or of a repository's committed tree."""
     args = list(sys.argv[1:] if argv is None else argv)
     if len(args) >= 2 and args[0] != "--committed":

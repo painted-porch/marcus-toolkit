@@ -14,10 +14,10 @@ figures where a model lists one.
 from __future__ import annotations
 
 import re
-from typing import Dict, Mapping, Tuple
+from collections.abc import Mapping
 
 #: $/M tokens: (input, output, cache read, cache write).
-PRICES: Dict[str, Tuple[float, float, float, float]] = {
+PRICES: dict[str, tuple[float, float, float, float]] = {
     "claude-sonnet-4-5": (3.0, 15.0, 0.30, 3.75),
     "claude-sonnet-5": (2.0, 10.0, 0.20, 2.50),
     "claude-haiku-4-5": (1.0, 5.0, 0.10, 1.25),
@@ -25,7 +25,7 @@ PRICES: Dict[str, Tuple[float, float, float, float]] = {
 }
 
 #: Short names the Minecraft runs recorded, kept so their records price the same.
-ALIASES: Dict[str, str] = {
+ALIASES: dict[str, str] = {
     "sonnet": "claude-sonnet-4-5",
     "haiku": "claude-haiku-4-5",
     "sonnet-5": "claude-sonnet-5",
@@ -35,7 +35,7 @@ ALIASES: Dict[str, str] = {
 
 _DATE_SUFFIX = re.compile(r"-\d{8}$")
 
-USAGE_KEYS: Tuple[str, str, str, str] = ("input", "output", "cacheRead", "cacheWrite")
+USAGE_KEYS: tuple[str, str, str, str] = ("input", "output", "cacheRead", "cacheWrite")
 
 
 def resolve(model: str) -> str:

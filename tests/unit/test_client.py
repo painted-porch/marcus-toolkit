@@ -1,6 +1,7 @@
 """Unit tests for marcus_runner.client."""
 
 import pytest
+
 from marcus_runner.client import (
     MarcusClientError,
     MarcusMCPClient,

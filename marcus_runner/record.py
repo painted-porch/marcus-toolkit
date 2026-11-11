@@ -13,7 +13,7 @@ import json
 import shutil
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 def stamp_now() -> str:
@@ -33,7 +33,7 @@ class RunRecord:
         The run's stamp; now by default.
     """
 
-    def __init__(self, root: Path, stamp: Optional[str] = None) -> None:
+    def __init__(self, root: Path, stamp: str | None = None) -> None:
         self.stamp = stamp or stamp_now()
         self.dir = root / self.stamp
         self.dir.mkdir(parents=True, exist_ok=True)
@@ -47,9 +47,9 @@ class RunRecord:
         with self.path("run-config.txt").open("a") as handle:
             handle.write(f"{key + ':':<20}{value}\n")
 
-    def config(self) -> Dict[str, str]:
+    def config(self) -> dict[str, str]:
         """Read ``run-config.txt`` back as a mapping (last value wins)."""
-        out: Dict[str, str] = {}
+        out: dict[str, str] = {}
         file = self.path("run-config.txt")
         if not file.is_file():
             return out
@@ -66,13 +66,13 @@ class RunRecord:
         target.write_text(text)
         return target
 
-    def append_jsonl(self, name: str, row: Dict[str, Any]) -> None:
+    def append_jsonl(self, name: str, row: dict[str, Any]) -> None:
         """Append one row to a JSONL stream, flushed at once."""
         with self.path(name).open("a") as handle:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
             handle.flush()
 
-    def copy_in(self, source: Path, name: Optional[str] = None) -> Optional[Path]:
+    def copy_in(self, source: Path, name: str | None = None) -> Path | None:
         """Copy a file or directory into the record; ``None`` if it is missing."""
         if not source.exists():
             return None

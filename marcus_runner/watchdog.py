@@ -18,13 +18,13 @@ import argparse
 import subprocess  # nosec B404 - stopping our own run's processes, fixed argv, no shell
 import sys
 import time
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, List, Optional, Sequence, Union
 
 from .usage import total_dollars
 
-StopLine = Union[float, Callable[[], float]]
+StopLine = float | Callable[[], float]
 
 
 @dataclass
@@ -101,11 +101,11 @@ def watch(
     stop_line: StopLine,
     kill: Callable[[], None],
     poll_seconds: float = 30.0,
-    max_polls: Optional[int] = None,
+    max_polls: int | None = None,
     model_hint: str = "sonnet",
-    on_poll: Optional[Callable[[PollResult], None]] = None,
+    on_poll: Callable[[PollResult], None] | None = None,
     sleep: Callable[[float], None] = time.sleep,
-) -> Optional[PollResult]:
+) -> PollResult | None:
     """
     Poll until the run is killed or ``max_polls`` is exhausted.
 
@@ -134,7 +134,7 @@ def watch(
         The last poll, or ``None`` if none ran.
     """
     polls = 0
-    last: Optional[PollResult] = None
+    last: PollResult | None = None
     while max_polls is None or polls < max_polls:
         last = watch_once(state_dir, stop_line, kill, model_hint)
         if on_poll:
@@ -149,7 +149,7 @@ def watch(
 
 
 def kill_action(
-    pid_files: Sequence[Path] = (), docker_name_pattern: Optional[str] = None
+    pid_files: Sequence[Path] = (), docker_name_pattern: str | None = None
 ) -> Callable[[], None]:
     """
     Build the stop action: stop matching containers, then kill each pid in the files.
@@ -208,7 +208,7 @@ def kill_action(
     return _kill
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """CLI entry point: the background watchdog a run script starts."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state", required=True, help="the run's state directory")

@@ -18,8 +18,9 @@ line is skipped, so this is safe to call repeatedly.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Iterator
 from pathlib import Path
-from typing import Any, Dict, Iterable, Iterator, Optional, Tuple
+from typing import Any
 
 from . import pricing
 
@@ -31,7 +32,7 @@ _ANTHROPIC_NAMES = {
 }
 
 
-def normalize_usage(raw: Any) -> Optional[Dict[str, int]]:
+def normalize_usage(raw: Any) -> dict[str, int] | None:
     """
     Read a usage mapping in either pi's or Anthropic's field names.
 
@@ -59,7 +60,7 @@ def normalize_usage(raw: Any) -> Optional[Dict[str, int]]:
     return mapped if seen else None
 
 
-def _usages(entry: Any) -> Iterable[Dict[str, Any]]:
+def _usages(entry: Any) -> Iterable[dict[str, Any]]:
     """Yield every usage mapping nested anywhere in a transcript entry."""
     if isinstance(entry, dict):
         if isinstance(entry.get("input"), int) and isinstance(entry.get("output"), int):
@@ -79,7 +80,7 @@ def _lines(file: Path) -> Iterator[Any]:
             continue
 
 
-def rows(state_dir: Path) -> Iterator[Tuple[str, Dict[str, int], Optional[str]]]:
+def rows(state_dir: Path) -> Iterator[tuple[str, dict[str, int], str | None]]:
     """
     Yield ``(agent, usage, model)`` for every usage row under ``state_dir``.
 
@@ -113,7 +114,7 @@ def rows(state_dir: Path) -> Iterator[Tuple[str, Dict[str, int], Optional[str]]]
                 yield agent, normalized, str(model) if model else None
 
 
-def costs(state_dir: Path, model_hint: str = "sonnet") -> Dict[str, Dict[str, Any]]:
+def costs(state_dir: Path, model_hint: str = "sonnet") -> dict[str, dict[str, Any]]:
     """
     Price each agent's usage.
 
@@ -131,7 +132,7 @@ def costs(state_dir: Path, model_hint: str = "sonnet") -> Dict[str, Dict[str, An
         pi records a zero row for an aborted continuation), token totals,
         ``dollars`` and the models seen.
     """
-    per_agent: Dict[str, Dict[str, Any]] = {}
+    per_agent: dict[str, dict[str, Any]] = {}
     for agent, usage, model in rows(state_dir):
         row = per_agent.setdefault(
             agent,
@@ -193,10 +194,10 @@ def total_dollars(state_dir: Path, model_hint: str = "sonnet") -> float:
 
 def write_usage_row(
     path: Path,
-    usage: Dict[str, Any],
+    usage: dict[str, Any],
     model: str,
     at: str,
-    extra: Optional[Dict[str, Any]] = None,
+    extra: dict[str, Any] | None = None,
 ) -> None:
     """
     Append one usage row in the simple layout, for runtimes that write their own.

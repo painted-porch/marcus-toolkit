@@ -1,6 +1,7 @@
 """Unit tests for marcus_runner.pricing."""
 
 import pytest
+
 from marcus_runner import pricing
 
 pytestmark = pytest.mark.unit

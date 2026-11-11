@@ -15,21 +15,22 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import datetime, timezone
+from collections.abc import Callable, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Protocol, Sequence
+from typing import Any, Protocol
 
 
 class ToolClient(Protocol):
-    """What the shell needs from a client: a tool call that returns a reply or ``None``."""
+    """What the shell needs from a client: a tool call returning a reply or None."""
 
     def call_tool(
-        self, name: str, arguments: Optional[Dict[str, Any]] = None
-    ) -> Optional[Dict[str, Any]]:
+        self, name: str, arguments: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         """Call a tool and return its reply body, or ``None``."""
 
 
-def outcome_of(tool: str, reply: Dict[str, Any]) -> str:
+def outcome_of(tool: str, reply: dict[str, Any]) -> str:
     """
     Classify a reply the way the Minecraft harness does.
 
@@ -54,7 +55,7 @@ def outcome_of(tool: str, reply: Dict[str, Any]) -> str:
     return "failed" if reply.get("success") is False else "ok"
 
 
-def jsonl_logger(path: Path) -> Callable[[Dict[str, Any]], None]:
+def jsonl_logger(path: Path) -> Callable[[dict[str, Any]], None]:
     """
     Append one JSON line per record to ``path``, flushed at once.
 
@@ -69,7 +70,7 @@ def jsonl_logger(path: Path) -> Callable[[Dict[str, Any]], None]:
     """
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    def log(record: Dict[str, Any]) -> None:
+    def log(record: dict[str, Any]) -> None:
         with path.open("a") as handle:
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
@@ -113,8 +114,8 @@ class BoardAgent:
         role: str = "worker",
         skills: Sequence[str] = ("worker",),
         project_root: str = "",
-        log: Optional[Callable[[Dict[str, Any]], None]] = None,
-        hold_path: Optional[Path] = None,
+        log: Callable[[dict[str, Any]], None] | None = None,
+        hold_path: Path | None = None,
         sleep: Callable[[float], None] = time.sleep,
         now: Callable[[], float] = time.time,
     ) -> None:
@@ -129,9 +130,9 @@ class BoardAgent:
         self.sleep = sleep
         self.now = now
         self.registered = False
-        self.objective: Optional[str] = None
-        self.task: Optional[Dict[str, Any]] = None
-        self.lease_epoch: Optional[int] = None
+        self.objective: str | None = None
+        self.task: dict[str, Any] | None = None
+        self.lease_epoch: int | None = None
         if hold_path is not None and hold_path.is_file():
             held = json.loads(hold_path.read_text())
             self.task = held.get("task")
@@ -148,7 +149,7 @@ class BoardAgent:
         elif self.hold_path.exists():
             self.hold_path.unlink()
 
-    def board(self, tool: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    def board(self, tool: str, args: dict[str, Any]) -> dict[str, Any]:
         """
         Call one tool, timing and logging it.
 
@@ -171,7 +172,7 @@ class BoardAgent:
         if self.log:
             self.log(
                 {
-                    "at": datetime.now(timezone.utc).isoformat(),
+                    "at": datetime.now(UTC).isoformat(),
                     "agent": self.agent_id,
                     "tool": tool,
                     "args": args,
@@ -182,7 +183,7 @@ class BoardAgent:
             )
         return reply
 
-    def register(self) -> Dict[str, Any]:
+    def register(self) -> dict[str, Any]:
         """Register with the project and read its objective once."""
         reply = self.board(
             "register_agent",
@@ -218,9 +219,9 @@ class BoardAgent:
     def pull(
         self,
         absorb: bool = False,
-        max_asks: Optional[int] = None,
-        wait_seconds: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        max_asks: int | None = None,
+        wait_seconds: float | None = None,
+    ) -> dict[str, Any]:
         """
         Ask for work.
 
@@ -264,7 +265,7 @@ class BoardAgent:
                         "limit": 20,
                     },
                 )
-                out: Dict[str, Any] = {
+                out: dict[str, Any] = {
                     "status": "assigned",
                     "task": task,
                     "lease_epoch": self.lease_epoch,
@@ -292,11 +293,11 @@ class BoardAgent:
         status: str,
         message: str,
         *,
-        progress: Optional[int] = None,
-        subject: Optional[str] = None,
-        observation: Optional[str] = None,
-        evidence: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        progress: int | None = None,
+        subject: str | None = None,
+        observation: str | None = None,
+        evidence: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Report on the held task; completion or blocking clears the hold.
 
@@ -321,7 +322,7 @@ class BoardAgent:
         """
         if not self.task:
             return {"success": False, "error": "You hold no task."}
-        args: Dict[str, Any] = {
+        args: dict[str, Any] = {
             "agent_id": self.agent_id,
             "task_id": self.task["id"],
             "status": status,
@@ -354,9 +355,9 @@ class BoardAgent:
         why: str = "",
         impact: str = "",
         about_task: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Leave a marker on the board."""
-        args: Dict[str, Any] = {
+        args: dict[str, Any] = {
             "agent_id": self.agent_id,
             "subject": subject,
             "what": what,
@@ -368,13 +369,16 @@ class BoardAgent:
         return self.board("give_opinion", args)
 
     def decide(
-        self, what: str, why: str, subject: Optional[str] = None, kind: str = "decision"
-    ) -> Dict[str, Any]:
-        """Record what the agent did and why; a decision never counts toward a candidate."""
+        self, what: str, why: str, subject: str | None = None, kind: str = "decision"
+    ) -> dict[str, Any]:
+        """Record what the agent did and why; never counted toward a candidate."""
         mark = "DECISION" if kind == "decision" else "THOUGHT"
-        args: Dict[str, Any] = {
+        args: dict[str, Any] = {
             "agent_id": self.agent_id,
-            "decision": f"{mark}: {what.strip().rstrip('.')} because {why.strip().rstrip('.')}.",
+            "decision": (
+                f"{mark}: {what.strip().rstrip('.')}"
+                f" because {why.strip().rstrip('.')}."
+            ),
             "task_id": self.task["id"] if self.task else "",
         }
         if subject and subject.strip():
@@ -387,7 +391,7 @@ class BoardAgent:
         content: str,
         description: str = "",
         artifact_type: str = "world-state",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Put a file on the board as evidence for the held task."""
         if not self.task:
             return {"success": False, "error": "You hold no task."}
@@ -403,9 +407,9 @@ class BoardAgent:
             },
         )
 
-    def opinions(self, limit: int = 50, kind: Optional[str] = None) -> Dict[str, Any]:
+    def opinions(self, limit: int = 50, kind: str | None = None) -> dict[str, Any]:
         """Read the board's markers."""
-        args: Dict[str, Any] = {
+        args: dict[str, Any] = {
             "project_id": self.project_id,
             "query_type": "opinions",
             "limit": limit,
@@ -414,7 +418,7 @@ class BoardAgent:
             args["kind"] = kind
         return self.board("query_project_history", args)
 
-    def decisions(self, limit: int = 20) -> Dict[str, Any]:
+    def decisions(self, limit: int = 20) -> dict[str, Any]:
         """Read the board's decisions."""
         return self.board(
             "query_project_history",
@@ -426,9 +430,9 @@ class BoardAgent:
             },
         )
 
-    def status(self) -> Dict[str, Any]:
+    def status(self) -> dict[str, Any]:
         """Read the project's status."""
         return self.board("get_project_status", {})
 
 
-__all__: List[str] = ["BoardAgent", "ToolClient", "jsonl_logger", "outcome_of"]
+__all__: list[str] = ["BoardAgent", "ToolClient", "jsonl_logger", "outcome_of"]

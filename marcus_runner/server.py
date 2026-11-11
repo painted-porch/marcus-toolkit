@@ -25,7 +25,6 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Dict, List, Optional
 
 #: Keys stripped from the server's environment, so the server can make no paid call.
 STRIPPED_KEYS = (
@@ -58,7 +57,7 @@ def port_in_use(port: int, host: str = "127.0.0.1") -> bool:
         return sock.connect_ex((host, port)) == 0
 
 
-def port_owner(port: int) -> Optional[int]:
+def port_owner(port: int) -> int | None:
     """Return the pid listening on ``port``, by ``lsof``, or ``None``."""
     try:
         out = subprocess.run(  # nosec B603 B607
@@ -90,10 +89,10 @@ def write_config(
     *,
     port: int,
     project_name: str,
-    sqlite_db_path: Optional[Path] = None,
+    sqlite_db_path: Path | None = None,
     host: str = "127.0.0.1",
     single_project_mode: bool = False,
-) -> Dict[str, object]:
+) -> dict[str, object]:
     """
     Write the server's config: SQLite, model off with an empty key, own port.
 
@@ -118,10 +117,10 @@ def write_config(
         The config written.
     """
     # The server runs from the checkout, so every path it is given must be absolute.
-    kanban: Dict[str, object] = {"provider": "sqlite"}
+    kanban: dict[str, object] = {"provider": "sqlite"}
     if sqlite_db_path is not None:
         kanban["sqlite_db_path"] = str(Path(sqlite_db_path).resolve())
-    config: Dict[str, object] = {
+    config: dict[str, object] = {
         "kanban": kanban,
         "default_project_name": f"{project_name} - Main Board",
         "project_name": project_name,
@@ -152,8 +151,8 @@ def build_env(
     checkout: Path,
     data_dir: Path,
     config_path: Path,
-    base: Optional[Dict[str, str]] = None,
-) -> Dict[str, str]:
+    base: dict[str, str] | None = None,
+) -> dict[str, str]:
     """
     Build the server's environment: keys stripped, paths set, telemetry off.
 
@@ -232,7 +231,7 @@ class ServerUnderTest:
         self.port = port
         self.log_path = log_path
         self.python = python
-        self.process: Optional[subprocess.Popen[bytes]] = None
+        self.process: subprocess.Popen[bytes] | None = None
 
     @property
     def url(self) -> str:
@@ -320,7 +319,7 @@ class ServerUnderTest:
 
     def stop(self, wait_seconds: float = 20.0) -> None:
         """Stop the server and whoever else holds the port, then wait."""
-        pids: List[int] = []
+        pids: list[int] = []
         if self.process is not None and self.process.poll() is None:
             pids.append(self.process.pid)
         owner = port_owner(self.port)

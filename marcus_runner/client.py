@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import urllib.error
 import urllib.request
-from typing import Any, Dict, Optional
+from typing import Any
 
 _DEFAULT_MARCUS_URL = "http://127.0.0.1:4298/mcp/"
 
@@ -26,7 +26,7 @@ class MarcusClientError(RuntimeError):
     """A tool call that produced no readable reply."""
 
 
-def parse_mcp_tool_result(raw: bytes) -> Optional[Dict[str, Any]]:
+def parse_mcp_tool_result(raw: bytes) -> dict[str, Any] | None:
     """
     Parse an MCP ``tools/call`` HTTP response into its structured result.
 
@@ -98,7 +98,7 @@ class MarcusMCPClient:
         """True once :meth:`connect` has established a session."""
         return bool(self._session_id)
 
-    def _headers(self) -> Dict[str, str]:
+    def _headers(self) -> dict[str, str]:
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
@@ -107,7 +107,7 @@ class MarcusMCPClient:
             headers["mcp-session-id"] = self._session_id
         return headers
 
-    def _post(self, payload: Dict[str, Any]) -> bytes:
+    def _post(self, payload: dict[str, Any]) -> bytes:
         req = urllib.request.Request(
             self._url,
             data=json.dumps(payload).encode(),
@@ -161,8 +161,8 @@ class MarcusMCPClient:
             return False
 
     def call_tool(
-        self, name: str, arguments: Optional[Dict[str, Any]] = None
-    ) -> Optional[Dict[str, Any]]:
+        self, name: str, arguments: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         """
         Call a tool and return its structured result, or ``None`` on any failure.
 
@@ -196,8 +196,8 @@ class MarcusMCPClient:
         return parse_mcp_tool_result(raw)
 
     def call(
-        self, name: str, arguments: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, name: str, arguments: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Call a tool and return its reply body, raising when there is none.
 

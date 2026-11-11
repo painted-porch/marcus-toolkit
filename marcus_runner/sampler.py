@@ -23,14 +23,14 @@ import json
 import sqlite3
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 #: Statuses nobody comes back to; the drain verdict counts both as blocked
 #: (ADR-0013 K5).
 TERMINAL = frozenset({"blocked", "declined"})
 
 
-def find_board(where: Path) -> Optional[Path]:
+def find_board(where: Path) -> Path | None:
     """
     Resolve the board file from a path that may be the file or its directory.
 
@@ -52,7 +52,7 @@ def find_board(where: Path) -> Optional[Path]:
     return min(found, key=lambda p: len(p.parts)) if found else None
 
 
-def sample(db: Path, project_id: Optional[str] = None) -> Dict[str, Any]:
+def sample(db: Path, project_id: str | None = None) -> dict[str, Any]:
     """
     Take one sample of the board.
 
@@ -75,7 +75,7 @@ def sample(db: Path, project_id: Optional[str] = None) -> Dict[str, Any]:
             "select id, name, status, assigned_to from tasks"
             " where name not like 'About:%'"
         )
-        params: Tuple[str, ...] = ()
+        params: tuple[str, ...] = ()
         if project_id:
             query += " and project_id = ?"
             params = (project_id,)
@@ -87,16 +87,16 @@ def sample(db: Path, project_id: Optional[str] = None) -> Dict[str, Any]:
         con.close()
 
     status = {row[0]: row[2] for row in rows}
-    dependencies: Dict[str, List[str]] = {}
+    dependencies: dict[str, list[str]] = {}
     for task_id, depends_on in deps:
         dependencies.setdefault(task_id, []).append(depends_on)
 
-    done: List[str] = []
-    in_flight: List[str] = []
-    blocked: List[str] = []
-    unclaimable: List[str] = []
-    claimable: List[str] = []
-    holders: Dict[str, str] = {}
+    done: list[str] = []
+    in_flight: list[str] = []
+    blocked: list[str] = []
+    unclaimable: list[str] = []
+    claimable: list[str] = []
+    holders: dict[str, str] = {}
     for task_id, name, state, assignee in rows:
         if state == "done":
             done.append(name)
@@ -124,7 +124,7 @@ def sample(db: Path, project_id: Optional[str] = None) -> Dict[str, Any]:
     }
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """Sample until the deadline. Returns an exit code."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
