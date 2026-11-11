@@ -7,7 +7,7 @@ on:
 
 env:
   # The Marcus commit the live check runs against. Bump it on purpose, in its own PR.
-  MARCUS_REF: 0dfc3af0
+  MARCUS_REF: 0dfc3af091cb741e44cd9b58396894da2b5f2dc0
 
 jobs:
   python:
