@@ -386,6 +386,7 @@ def tend_candidates(
     evaporation_seconds: int | None = None,
     views: dict[str, dict[str, Any]] | None = None,
     declines_needed: int | None = None,
+    no_evidence_neutral: bool = False,
     settling_seconds: int = 0,
     answered: dict[str, list[str]] | None = None,
     attempts: dict[str, int] | None = None,
@@ -525,10 +526,15 @@ def tend_candidates(
         shown_to = list(row.get("shown_to") or [])
         awaiting = list(row.get("awaiting_turn") or [])
         abstained_by = list(candidate.abstainers)
-        declined_by = list(row.get("declined_by") or [])
-        for agent in abstained_by:
-            if agent not in declined_by:
-                declined_by.append(agent)
+        if no_evidence_neutral:
+            # NO EVIDENCE is neutral: not a vote. Only objections count as declines; an
+            # unsupported card drops when everyone has been shown it and nobody vouches.
+            declined_by = list(dict.fromkeys(candidate.objectors))
+        else:
+            declined_by = list(row.get("declined_by") or [])
+            for agent in abstained_by:
+                if agent not in declined_by:
+                    declined_by.append(agent)
         if answered is not None and abstained_by:
             fresh = [
                 a

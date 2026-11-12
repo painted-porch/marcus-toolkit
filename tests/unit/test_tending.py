@@ -275,3 +275,77 @@ def test_open_at_end_rows_carry_who_answered(tmp_path):
         and rows[0]["abstained_by"] == ["c"]
     )
     assert Path(tmp_path).is_dir()
+
+
+def test_no_evidence_is_neutral_when_asked(tmp_path):
+    """Three NO EVIDENCE answers neither drop a card nor count against it; objections do."""
+    posts = (
+        ("a", "NO EVIDENCE: my blocks have not seen it"),
+        ("b", "NO EVIDENCE: not in sight"),
+        ("c", "NO EVIDENCE: cannot judge"),
+    )
+    views = {
+        S: {
+            "shown_to": ["a", "b", "c"],
+            "declined_by": ["a", "b", "c"],
+            "supported_by": [],
+            "awaiting_turn": ["d", "e"],
+        }
+    }
+    neutral = tending.tend_candidates(
+        FakeBoard(),
+        [_entry(posts=posts)],
+        now="2026-11-06T15:00:00+00:00",
+        crew=5,
+        controller_id="planner",
+        out=tmp_path / "n.jsonl",
+        handled=set(),
+        views=views,
+        no_evidence_neutral=True,
+    )
+    assert neutral["evaporated"] == [] and neutral["waiting"] == [S]
+    counted = tending.tend_candidates(
+        FakeBoard(),
+        [_entry(posts=posts)],
+        now="2026-11-06T15:00:00+00:00",
+        crew=5,
+        controller_id="planner",
+        out=tmp_path / "c.jsonl",
+        handled=set(),
+        views=views,
+    )
+    assert counted["evaporated"] == [S]
+    # everyone shown, nobody vouches: the card drops even under the neutral rule
+    views[S]["awaiting_turn"] = []
+    views[S]["shown_to"] = ["a", "b", "c", "d", "e"]
+    done = tending.tend_candidates(
+        FakeBoard(),
+        [_entry(posts=posts)],
+        now="2026-11-06T15:00:00+00:00",
+        crew=5,
+        controller_id="planner",
+        out=tmp_path / "e.jsonl",
+        handled=set(),
+        views=views,
+        no_evidence_neutral=True,
+    )
+    assert done["evaporated"] == [S]
+    # objections still decline
+    objected = (
+        ("a", "OBJECT: wrong ford"),
+        ("b", "OBJECT: already held"),
+        ("c", "OBJECT: no"),
+    )
+    views[S]["awaiting_turn"] = ["d", "e"]
+    out = tending.tend_candidates(
+        FakeBoard(),
+        [_entry(posts=objected)],
+        now="2026-11-06T15:00:00+00:00",
+        crew=5,
+        controller_id="planner",
+        out=tmp_path / "o.jsonl",
+        handled=set(),
+        views=views,
+        no_evidence_neutral=True,
+    )
+    assert out["evaporated"] == [S]

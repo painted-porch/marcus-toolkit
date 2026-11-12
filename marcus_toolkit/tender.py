@@ -120,8 +120,10 @@ class Tender:
         settling_seconds: int = 0,
         veto_seconds: int = 120,
         build_seed: Callable[[dict[str, Any]], dict[str, Any] | None] | None = None,
+        no_evidence_neutral: bool = False,
     ) -> None:
         self.build_seed = build_seed
+        self.no_evidence_neutral = no_evidence_neutral
         self.client = client
         self.project_id = project_id
         self.controller_id = controller_id
@@ -212,6 +214,7 @@ class Tender:
             tasks=tasks,
             observations=self.build_seed is not None,
             build_seed=self.build_seed,
+            no_evidence_neutral=self.no_evidence_neutral,
         )
         self.last_open = list(actions.get("open_specs") or [])
         self.last_views = tally
@@ -284,6 +287,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--declines-needed", type=int, default=3)
     parser.add_argument("--settling-seconds", type=int, default=0)
     parser.add_argument("--veto-seconds", type=int, default=120)
+    parser.add_argument(
+        "--no-evidence-neutral",
+        action="store_true",
+        help="NO EVIDENCE is neither support nor a decline; only objections decline",
+    )
     args = parser.parse_args(argv)
 
     client = MarcusMCPClient(args.url, timeout=60)
@@ -307,6 +315,7 @@ def main(argv: list[str] | None = None) -> int:
         settling_seconds=args.settling_seconds,
         veto_seconds=args.veto_seconds,
         build_seed=build_seed,
+        no_evidence_neutral=args.no_evidence_neutral,
     )
 
     def stop(signum: int, frame: Any) -> None:
