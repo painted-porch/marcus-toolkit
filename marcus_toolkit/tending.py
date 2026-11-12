@@ -369,6 +369,76 @@ def ensure_registered(
     return bool(reply.get("success", True))
 
 
+def group_observations(
+    entries: list[dict[str, Any]],
+    observation_key: Callable[[dict[str, Any]], str | None] | None,
+    handled: set[str],
+) -> list[dict[str, Any]]:
+    """
+    Merge observation entries that an extension says are about the same thing.
+
+    With no ``observation_key`` the entries come back as they are. With one,
+    every assessment entry whose key is the same is folded into one synthetic
+    entry: subject ``<key>``, the union of the agents, the opinions joined,
+    and ``sources`` listing the subjects it came from. Entries whose key is
+    None, candidate and proposal subjects, and subjects already handled are
+    left alone.
+
+    Parameters
+    ----------
+    entries : List[Dict[str, Any]]
+        The board's opinions entries.
+    observation_key : Optional[Callable]
+        The extension's rule for what two subjects have in common (a place, say).
+    handled : Set[str]
+        Subjects already turned into candidates or declined.
+
+    Returns
+    -------
+    List[Dict[str, Any]]
+        The entries to run the observation route over.
+    """
+    if observation_key is None:
+        return entries
+    out: list[dict[str, Any]] = []
+    groups: dict[str, dict[str, Any]] = {}
+    for entry in entries:
+        subject = str(entry.get("subject") or "")
+        if (
+            not subject
+            or subject.startswith(CANDIDATE_PREFIX)
+            or subject.startswith(PROPOSAL_PREFIX)
+            or entry.get("kind", "assessment") != "assessment"
+            or subject in handled
+        ):
+            out.append(entry)
+            continue
+        key = observation_key(entry)
+        if not key:
+            out.append(entry)
+            continue
+        group = groups.get(key)
+        if group is None:
+            group = {
+                "subject": key,
+                "kind": "assessment",
+                "agents": [],
+                "opinions": [],
+                "sources": [],
+            }
+            groups[key] = group
+            out.append(group)
+        for agent in entry.get("agents") or []:
+            if str(agent) not in group["agents"]:
+                group["agents"].append(str(agent))
+        group["opinions"].extend(list(entry.get("opinions") or []))
+        group["sources"].append(subject)
+    for group in groups.values():
+        group["count"] = len(group["agents"])
+        group["opinions"].sort(key=lambda o: str(o.get("timestamp") or ""))
+    return out
+
+
 def tend_candidates(
     client: Client,
     entries: list[dict[str, Any]],
@@ -387,6 +457,7 @@ def tend_candidates(
     views: dict[str, dict[str, Any]] | None = None,
     declines_needed: int | None = None,
     no_evidence_neutral: bool = False,
+    observation_key: Callable[[dict[str, Any]], str | None] | None = None,
     settling_seconds: int = 0,
     answered: dict[str, list[str]] | None = None,
     attempts: dict[str, int] | None = None,
@@ -749,7 +820,7 @@ def tend_candidates(
         )
 
     if observations and build_seed is not None:
-        for entry in entries:
+        for entry in group_observations(entries, observation_key, handled):
             subject = str(entry.get("subject") or "")
             if (
                 not subject

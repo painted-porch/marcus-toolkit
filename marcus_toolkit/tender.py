@@ -121,9 +121,11 @@ class Tender:
         veto_seconds: int = 120,
         build_seed: Callable[[dict[str, Any]], dict[str, Any] | None] | None = None,
         no_evidence_neutral: bool = False,
+        observation_key: Callable[[dict[str, Any]], str | None] | None = None,
     ) -> None:
         self.build_seed = build_seed
         self.no_evidence_neutral = no_evidence_neutral
+        self.observation_key = observation_key
         self.client = client
         self.project_id = project_id
         self.controller_id = controller_id
@@ -215,6 +217,7 @@ class Tender:
             observations=self.build_seed is not None,
             build_seed=self.build_seed,
             no_evidence_neutral=self.no_evidence_neutral,
+            observation_key=self.observation_key,
         )
         self.last_open = list(actions.get("open_specs") or [])
         self.last_views = tally
@@ -288,6 +291,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--settling-seconds", type=int, default=0)
     parser.add_argument("--veto-seconds", type=int, default=120)
     parser.add_argument(
+        "--observation-key",
+        default=None,
+        help="module:function naming what two observation subjects share (a place);"
+        " entries with the same key are merged before the threshold",
+    )
+    parser.add_argument(
         "--no-evidence-neutral",
         action="store_true",
         help="NO EVIDENCE is neither support nor a decline; only objections decline",
@@ -302,6 +311,9 @@ def main(argv: list[str] | None = None) -> int:
         print("tender: registration refused", file=sys.stderr)
         return 2
     build_seed = load_build_seed(args.build_seed) if args.build_seed else None
+    observation_key = (
+        load_build_seed(args.observation_key) if args.observation_key else None
+    )
     tender = Tender(
         client,
         args.project,
@@ -316,6 +328,7 @@ def main(argv: list[str] | None = None) -> int:
         veto_seconds=args.veto_seconds,
         build_seed=build_seed,
         no_evidence_neutral=args.no_evidence_neutral,
+        observation_key=observation_key,
     )
 
     def stop(signum: int, frame: Any) -> None:

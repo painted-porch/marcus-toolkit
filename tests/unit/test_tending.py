@@ -349,3 +349,45 @@ def test_no_evidence_is_neutral_when_asked(tmp_path):
         no_evidence_neutral=True,
     )
     assert out["evaporated"] == [S]
+
+
+def test_observations_group_by_the_extension_key_before_the_threshold():
+    """Two subjects naming one place merge into one entry with both agents."""
+    entries = [
+        {
+            "subject": "ford.middle",
+            "kind": "assessment",
+            "agents": ["a"],
+            "opinions": [
+                {"agent_id": "a", "what": "x", "timestamp": "2026-01-01T00:00:01Z"}
+            ],
+        },
+        {
+            "subject": "river.center.ford",
+            "kind": "assessment",
+            "agents": ["b"],
+            "opinions": [
+                {"agent_id": "b", "what": "y", "timestamp": "2026-01-01T00:00:02Z"}
+            ],
+        },
+        {"subject": "morale", "kind": "assessment", "agents": ["c"], "opinions": []},
+        {
+            "subject": "candidate.z",
+            "kind": "assessment",
+            "agents": ["planner"],
+            "opinions": [],
+        },
+    ]
+
+    def key(e):
+        return "place.middle.ford" if "ford" in e["subject"] else None
+
+    merged = tending.group_observations(entries, key, set())
+    places = [e for e in merged if e["subject"] == "place.middle.ford"]
+    assert len(places) == 1 and sorted(places[0]["agents"]) == ["a", "b"]
+    assert places[0]["sources"] == ["ford.middle", "river.center.ford"]
+    assert [e["subject"] for e in merged if e["subject"] != "place.middle.ford"] == [
+        "morale",
+        "candidate.z",
+    ]
+    assert tending.group_observations(entries, None, set()) is entries
