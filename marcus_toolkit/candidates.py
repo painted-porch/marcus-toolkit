@@ -421,9 +421,9 @@ def candidate_from_proposal(
 
 def candidate_from_observation(
     entry: dict[str, Any],
-    build_seed: Callable[[dict[str, Any]], dict[str, Any]],
+    build_seed: Callable[[dict[str, Any]], dict[str, Any] | None],
     labels: Sequence[str] = (PLANNED_LABEL,),
-) -> dict[str, Any]:
+) -> dict[str, Any] | None:
     """
     Turn an observation subject two distinct agents posted on into a candidate spec.
 
@@ -439,11 +439,14 @@ def candidate_from_observation(
 
     Returns
     -------
-    Dict[str, Any]
+    Optional[Dict[str, Any]]
         The spec, with the observers carried so they count as supporters and
-        the veto window applies.
+        the veto window applies; None when the extension has no card for it.
     """
-    spec = dict(build_seed(entry))
+    built = build_seed(entry)
+    if built is None:
+        return None
+    spec = dict(built)
     have = [str(label) for label in (spec.get("labels") or [])]
     for label in labels:
         if label not in have:

@@ -380,7 +380,7 @@ def tend_candidates(
     authors: dict[str, list[str]] | None = None,
     board_names: Iterable[str] | None = None,
     observations: bool = False,
-    build_seed: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+    build_seed: Callable[[dict[str, Any]], dict[str, Any] | None] | None = None,
     labels: Sequence[str] = (PLANNED_LABEL,),
     veto_seconds: int | None = None,
     evaporation_seconds: int | None = None,
@@ -761,7 +761,16 @@ def tend_candidates(
             }
             if len(agents) < THRESHOLD:
                 continue
-            spec = candidate_from_observation(entry, build_seed, labels=labels)
+            maybe = candidate_from_observation(entry, build_seed, labels=labels)
+            if maybe is None:
+                # the extension has no card for this subject; counted, not posted
+                handled.add(subject)
+                actions.setdefault("no_card_for", []).append(subject)
+                event(
+                    {"event": "no_card", "subject": subject, "agents": sorted(agents)}
+                )
+                continue
+            spec = maybe
             new_subject = candidate_subject(spec["name"])
             if (
                 new_subject in existing

@@ -233,3 +233,13 @@ def test_lineage_and_task_lines():
     )
     assert task_state({"status": "done"}) == ("done", None)
     assert task_state({"status": "todo"}) == ("open", None)
+
+
+def test_candidate_from_observation_returns_none_when_the_rule_has_no_card():
+    """An extension's rule may decline a subject; the toolkit passes that through."""
+    from marcus_toolkit.candidates import candidate_from_observation
+
+    entry = {"subject": "morale.low", "agents": ["a", "b"], "opinions": []}
+    assert candidate_from_observation(entry, lambda _e: None) is None
+    spec = candidate_from_observation(entry, lambda _e: {"name": "Hold it"})
+    assert spec is not None and spec["observers"] == ["a", "b"]

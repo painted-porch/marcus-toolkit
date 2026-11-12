@@ -22,12 +22,13 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import signal
 import sqlite3
 import sys
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -118,7 +119,9 @@ class Tender:
         declines_needed: int = 3,
         settling_seconds: int = 0,
         veto_seconds: int = 120,
+        build_seed: Callable[[dict[str, Any]], dict[str, Any] | None] | None = None,
     ) -> None:
+        self.build_seed = build_seed
         self.client = client
         self.project_id = project_id
         self.controller_id = controller_id
@@ -207,6 +210,8 @@ class Tender:
             answered=self.answered,
             attempts=self.attempts,
             tasks=tasks,
+            observations=self.build_seed is not None,
+            build_seed=self.build_seed,
         )
         self.last_open = list(actions.get("open_specs") or [])
         self.last_views = tally
@@ -224,6 +229,30 @@ class Tender:
                 for row in rows:
                     handle.write(json.dumps(row) + "\n")
         return len(rows)
+
+
+def load_build_seed(spec: str) -> Callable[[dict[str, Any]], dict[str, Any] | None]:
+    """
+    Import ``module:function`` from the current path.
+
+    Parameters
+    ----------
+    spec : str
+        ``package.module:function``.
+
+    Returns
+    -------
+    Callable
+        The extension's observation rule.
+    """
+    module_name, _, func_name = spec.partition(":")
+    if not module_name or not func_name:
+        raise ValueError(f"--build-seed needs module:function, got {spec!r}")
+    module = importlib.import_module(module_name)
+    func = getattr(module, func_name)
+    if not callable(func):
+        raise ValueError(f"{spec} is not callable")
+    return func  # type: ignore[no-any-return]
 
 
 class Stopped(Exception):
@@ -244,6 +273,12 @@ def main(argv: list[str] | None = None) -> int:
         "--post", default=None, help="a JSON list of specs to post on the first pass"
     )
     parser.add_argument("--labels", default=PLANNED_LABEL, help="comma-separated")
+    parser.add_argument(
+        "--build-seed",
+        default=None,
+        help="module:function turning a corroborated observation entry into a task spec"
+        " (or None for no card); turns the observation route on",
+    )
     parser.add_argument("--poll-seconds", type=float, default=1.0)
     parser.add_argument("--max-minutes", type=float, default=30.0)
     parser.add_argument("--declines-needed", type=int, default=3)
@@ -258,6 +293,7 @@ def main(argv: list[str] | None = None) -> int:
     if not tending.ensure_registered(client, args.controller_id, args.project):
         print("tender: registration refused", file=sys.stderr)
         return 2
+    build_seed = load_build_seed(args.build_seed) if args.build_seed else None
     tender = Tender(
         client,
         args.project,
@@ -270,6 +306,7 @@ def main(argv: list[str] | None = None) -> int:
         declines_needed=args.declines_needed,
         settling_seconds=args.settling_seconds,
         veto_seconds=args.veto_seconds,
+        build_seed=build_seed,
     )
 
     def stop(signum: int, frame: Any) -> None:

@@ -129,3 +129,22 @@ def test_a_pass_reads_the_board_the_views_and_the_tasks(tmp_path):
     ][0]
     assert "Lineage: from enemy.north (c); supported by a, b" in created["description"]
     assert t.passes == 1 and t.flush_open() == 0
+
+
+def test_load_build_seed_imports_module_function(tmp_path, monkeypatch):
+    """``module:function`` on the path is imported; a bad spec is refused."""
+    import sys
+
+    from marcus_toolkit.tender import load_build_seed
+
+    (tmp_path / "rule_mod.py").write_text(
+        "def rule(entry):\n    return None if entry.get('subject') == 'x' else {'name': 'n'}\n"
+    )
+    sys.path.insert(0, str(tmp_path))
+    rule = load_build_seed("rule_mod:rule")
+    assert rule({"subject": "x"}) is None
+    assert rule({"subject": "ford"})["name"] == "n"
+    import pytest
+
+    with pytest.raises(ValueError):
+        load_build_seed("nocolon")
