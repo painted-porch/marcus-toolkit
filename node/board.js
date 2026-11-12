@@ -93,11 +93,14 @@ export function createBoard({
      * Ask for work. With `absorb`, an "ask again" reply is waited out here, one
      * board call per ask, so idle time costs wall-clock and no model turn.
      *
-     * @param {{absorb?: boolean, maxAsks?: number, waitMs?: number}} [opts]
+     * With `quiet`, an assignment fetches neither the task context nor the board's
+     * opinions: the caller is blind to the board by design and must not read it.
+     *
+     * @param {{absorb?: boolean, maxAsks?: number, waitMs?: number, quiet?: boolean}} [opts]
      * @returns {Promise<object>} {status:'assigned', task, context, opinions, objective?}
      *     | {status:'retry', reply} | {status:'drained', reply} | {status:'error', reply}
      */
-    const pull = async ({ absorb = true, maxAsks = Infinity, waitMs = null } = {}) => {
+    const pull = async ({ absorb = true, maxAsks = Infinity, waitMs = null, quiet = false } = {}) => {
         const refused = await ensureRegistered();
         if (refused) return { status: 'error', reply: refused };
         if (state.task) return { status: 'holding', task: state.task };
@@ -109,7 +112,7 @@ export function createBoard({
                 state.task = { id: reply.task.id, name: reply.task.name };
                 state.leaseEpoch = reply.lease_epoch ?? null;
                 remember();
-                const [context, opinions] = await Promise.all([
+                const [context, opinions] = quiet ? [null, null] : await Promise.all([
                     board('get_task_context', { task_id: reply.task.id }),
                     board('query_project_history', { project_id: projectId, query_type: 'opinions', limit: 20 }),
                 ]);

@@ -116,3 +116,16 @@ test('an opinion or a decision before any pull registers the agent first', async
     await b.decide({ what: 'held', why: 'ordered' });
     assert.equal(client.calls.filter(c => c.tool === 'register_agent').length, 1, 'registered once');
 });
+
+
+test('a quiet pull takes the card and reads nothing else from the board', async () => {
+    const calls = [];
+    const client = { call: async (name, args) => { calls.push(name); if (name === 'register_agent') return { success: true }; if (name === 'request_next_task') return { success: true, task: { id: 't1', name: 'card' } }; return { success: true, data: [] }; } };
+    const b = createBoard({ agent: 'a1', projectId: 'p', role: 'r', skills: [], client, log: () => {} });
+    await b.register();
+    const r = await b.pull({ absorb: false, quiet: true });
+    assert.equal(r.status, 'assigned');
+    assert.equal(r.opinions, null);
+    assert.ok(!calls.includes('query_project_history') || calls.filter(c => c === 'query_project_history').length <= 1, 'only the registration primer read');
+    assert.ok(!calls.includes('get_task_context'));
+});
