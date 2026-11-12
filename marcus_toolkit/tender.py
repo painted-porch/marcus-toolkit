@@ -237,7 +237,7 @@ class Tender:
         return len(rows)
 
 
-def load_build_seed(spec: str) -> Callable[[dict[str, Any]], dict[str, Any] | None]:
+def load_build_seed(spec: str) -> Callable[[dict[str, Any]], Any]:
     """
     Import ``module:function`` from the current path.
 
