@@ -13,3 +13,4 @@ The format follows Keep a Changelog, and versions follow Semantic Versioning.
 The server config now switches the kernel's context feature on, because opinions and decisions are refused without it; and both clients register before any write, because the kernel records an opinion against the agent's registered project and refuses one from an agent it has not seen.
 Proven live by the wargame's deliberation rehearsal on 2026-11-11: both chains PROVEN, one candidate per side ratified and worked to a closed task, two per side evaporated by declines, zero model calls.
 - `node/`: the same client in Node, `mcp-http.js` and `board.js`, lifted from marcus-minecraft's `src/marcus/` and reduced to what a runtime without a game body needs.
+- Publishing: a `publish.yml` workflow builds the package and publishes it to PyPI by trusted publishing when a `v*` tag is pushed; `pyproject.toml` gains classifiers and project URLs. (#pypi)
