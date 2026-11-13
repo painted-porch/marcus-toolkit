@@ -1,0 +1,38 @@
+name: publish to PyPI
+
+# Builds the package and publishes it to PyPI when a version tag is pushed (v0.1.0, v0.2.0, ...).
+# Authentication is PyPI's trusted publishing (OpenID Connect): no token is stored anywhere.
+# One-time setup on pypi.org, project "marcus-toolkit", Publishing: owner painted-porch,
+# repository marcus-toolkit, workflow publish.yml, environment pypi.
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install build
+      - run: python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
