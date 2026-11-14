@@ -240,7 +240,12 @@ def seed_project(
         "complexity": "prototype",
         "path": "direct",
         "project_root": str(root),
-        "tasks": list(tasks),
+        # A spec's inputs may arrive as any mapping (validation accepts
+        # one); the wire wants plain dicts (Codex P2 on PR #2).
+        "tasks": [
+            {**spec, "inputs": dict(spec["inputs"])} if "inputs" in spec else dict(spec)
+            for spec in tasks
+        ],
     }
     if objective:
         options["objective"] = objective

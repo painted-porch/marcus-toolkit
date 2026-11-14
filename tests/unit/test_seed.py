@@ -214,3 +214,24 @@ def test_seed_project_without_a_declaration_sends_none(monkeypatch, tmp_path):
         project_root=tmp_path / "root",
     )
     assert "task_type_registrations" not in client.calls[0][1]["options"]
+
+
+def test_seed_project_sends_inputs_as_plain_dicts(monkeypatch, tmp_path):
+    """Codex P2 on PR #2: a read-only mapping for inputs is sent as JSON-ready dicts."""
+    from types import MappingProxyType
+
+    monkeypatch.setattr(seed.time, "sleep", lambda s: None)
+    client = FakeClient(total=2)
+    spec = {
+        "name": "Find",
+        "id": "f-1",
+        "task_type": "find",
+        "inputs": MappingProxyType({"case_id": "c-1"}),
+    }
+    seed.seed_project(
+        client, name="chain-green", description="d", tasks=[spec], project_root=tmp_path
+    )
+    sent = client.calls[0][1]["options"]["tasks"][0]
+    assert type(sent["inputs"]) is dict
+    assert sent["inputs"] == {"case_id": "c-1"}
+    assert sent is not spec
