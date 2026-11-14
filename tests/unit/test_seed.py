@@ -115,3 +115,102 @@ def test_seed_project_refuses_test_in_the_name_and_a_missing_project_id(
             tasks=GOOD,
             project_root=tmp_path,
         )
+
+
+TYPED = [
+    {
+        "name": "Find the source of case-1",
+        "id": "case-1-find",
+        "task_type": "find",
+        "inputs": {"case_id": "case-1", "query": "who said it"},
+        "labels": ["chain"],
+    },
+    {
+        "name": "Verify the claim for case-1",
+        "id": "case-1-verify",
+        "task_type": "verify",
+        "inputs": {"case_id": "case-1"},
+        "depends_on": ["case-1-find"],
+        "labels": ["chain"],
+    },
+]
+
+DECLARATION = {
+    "find": {"evidence_schema": {"required": ["headline", "url"]}},
+    "verify": {
+        "evidence_schema": {"required": ["verdict", "checks"]},
+        "verifies_task_type": "find",
+    },
+}
+
+
+def test_validate_accepts_the_typed_fields_and_a_dependency_by_id():
+    """Marcus b33dad5f (#911): task_type, inputs and id travel; depends_on may name an id."""
+    seed.validate_specs(TYPED)
+
+
+@pytest.mark.parametrize(
+    "bad, message",
+    [
+        ([{"name": "a", "task_type": ""}], "task_type"),
+        ([{"name": "a", "task_type": 3}], "task_type"),
+        ([{"name": "a", "inputs": ["not", "a", "mapping"]}], "inputs"),
+        ([{"name": "a", "id": "has spaces"}], "A-Za-z0-9_-"),
+        ([{"name": "a", "id": "dup"}, {"name": "b", "id": "dup"}], "distinct"),
+    ],
+)
+def test_validate_refuses_malformed_typed_fields(bad, message):
+    """What the kernel's validator would refuse is refused here first."""
+    with pytest.raises(ValueError, match=message):
+        seed.validate_specs(bad)
+
+
+def test_validate_task_type_registrations_accepts_a_declaration():
+    """A mapping of task type to mapping is the whole shape rule."""
+    seed.validate_task_type_registrations(DECLARATION)
+
+
+@pytest.mark.parametrize(
+    "bad, message",
+    [
+        (["find"], "mapping"),
+        ({"": {}}, "non-empty"),
+        ({"find": "evidence please"}, "mapping"),
+        ({"verify": {"injected_checks": [{"name": "x"}]}}, "checks_injectable"),
+    ],
+)
+def test_validate_task_type_registrations_refuses_what_the_kernel_would(bad, message):
+    """The kernel's own rules, applied before the call."""
+    with pytest.raises(ValueError, match=message):
+        seed.validate_task_type_registrations(bad)
+
+
+def test_seed_project_sends_the_declaration_with_the_typed_cards(monkeypatch, tmp_path):
+    """options.task_type_registrations rides in the same create_project call."""
+    monkeypatch.setattr(seed.time, "sleep", lambda s: None)
+    client = FakeClient(total=3)
+    seed.seed_project(
+        client,
+        name="chain-blue",
+        description="a typed chain",
+        tasks=TYPED,
+        project_root=tmp_path / "root",
+        task_type_registrations=DECLARATION,
+    )
+    _, args = client.calls[0]
+    assert args["options"]["tasks"] == TYPED
+    assert args["options"]["task_type_registrations"] == DECLARATION
+
+
+def test_seed_project_without_a_declaration_sends_none(monkeypatch, tmp_path):
+    """No declaration: the option is absent, exactly as before."""
+    monkeypatch.setattr(seed.time, "sleep", lambda s: None)
+    client = FakeClient(total=3)
+    seed.seed_project(
+        client,
+        name="chain-red",
+        description="d",
+        tasks=GOOD,
+        project_root=tmp_path / "root",
+    )
+    assert "task_type_registrations" not in client.calls[0][1]["options"]
