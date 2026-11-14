@@ -35,7 +35,12 @@ TASKS: list[dict[str, Any]] = [
         "priority": "high",
     },
     {
+        # Marcus b33dad5f (#911): a typed card with its own id and inputs,
+        # declared on the project record in the same call.
         "name": "Say it again, now that the first report is in",
+        "id": "livecheck-echo",
+        "task_type": "echo",
+        "inputs": {"repeat": "position"},
         "description": "Only claimable once the first task is done.",
         "labels": ["livecheck", "seeded"],
         "depends_on": ["Say where you are"],
@@ -44,6 +49,14 @@ TASKS: list[dict[str, Any]] = [
         "priority": "medium",
     },
 ]
+
+#: The K2 declaration for the typed card: its close must carry ``position``.
+TASK_TYPE_REGISTRATIONS: dict[str, dict[str, Any]] = {
+    "echo": {
+        "evidence_schema": {"type": "object", "required": ["position"]},
+        "checks_injectable": False,
+    },
+}
 
 
 def run(checkout: Path, out: Path, python: str = sys.executable) -> dict[str, Any]:
@@ -104,6 +117,7 @@ def run(checkout: Path, out: Path, python: str = sys.executable) -> dict[str, An
             tasks=TASKS,
             project_root=rec.dir / "project-root",
             objective="Say where you are; the board is the only channel.",
+            task_type_registrations=TASK_TYPE_REGISTRATIONS,
         )
         rec.config_line("project_id", seeded.project_id)
         board_db = data_dir / "kanban.db"
@@ -161,6 +175,8 @@ def run(checkout: Path, out: Path, python: str = sys.executable) -> dict[str, An
         pulls = measure.pulls(calls)
         board = measure.board_from_db(board_db, seeded.project_id)
         model_calls = srv.model_calls()
+        second_task = (second.get("task") or {}) if isinstance(second, dict) else {}
+        declaration = _project_declaration(data_dir, seeded.project_id)
         measurements = {
             "project_id": seeded.project_id,
             "board": board,
@@ -186,6 +202,13 @@ def run(checkout: Path, out: Path, python: str = sys.executable) -> dict[str, An
             == "assigned"
             and (second.get("task") or {}).get("name") == TASKS[1]["name"],
             "the second close was accepted": detail.get("second_close") is True,
+            "the typed card came back under its own id, type and inputs": (
+                second_task.get("id") == TASKS[1]["id"]
+                and second_task.get("task_type") == TASKS[1]["task_type"]
+                and second_task.get("inputs") == TASKS[1]["inputs"]
+            ),
+            "the project record carries the K2 declaration": declaration
+            == TASK_TYPE_REGISTRATIONS,
             "the third pull heard the drain": third.get("status") == "drained",
             "both seeded cards are done on the board": board["completed"] == 3,
             "the sampler saw nothing claimable after": after["tasks_claimable"] == 0,
@@ -203,6 +226,32 @@ def run(checkout: Path, out: Path, python: str = sys.executable) -> dict[str, An
     }
     rec.write("VERDICT.json", json.dumps(verdict, indent=2) + "\n")
     return verdict
+
+
+def _project_declaration(data_dir: Path, project_id: str) -> dict[str, Any]:
+    """
+    Read a project's ``task_type_registrations`` from the registry file.
+
+    Parameters
+    ----------
+    data_dir : Path
+        The server under test's data directory.
+    project_id : str
+        The registry id ``create_project`` returned.
+
+    Returns
+    -------
+    Dict[str, Any]
+        The declaration, or ``{}`` when the file or the project is absent.
+    """
+    path = data_dir / "marcus_state" / "projects.json"
+    try:
+        projects = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    entry = projects.get(project_id) if isinstance(projects, dict) else None
+    declaration = (entry or {}).get("task_type_registrations")
+    return dict(declaration) if isinstance(declaration, dict) else {}
 
 
 def main(argv: list[str] | None = None) -> int:

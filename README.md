@@ -13,7 +13,7 @@ This package is that scaffolding, built once (the inventory and the reasoning ar
 | Module | What it does |
 | --- | --- |
 | `marcus_toolkit.server` | a **server under test**: a private Marcus started for one run with every model-provider key stripped from its environment and the model switched off with an empty key, so the run can spend nothing by construction; refuses a port someone else holds and proves the port's owner is this run's server |
-| `marcus_toolkit.seed` | seeds a project with exactly the tasks named, through `create_project(options.tasks)`, and refuses before the call what the board would mis-handle: an unknown spec key, a `build`-family label, a dependency naming no task, a project name containing "test" |
+| `marcus_toolkit.seed` | seeds a project with exactly the tasks named, through `create_project(options.tasks)`, each card with its `task_type`, `inputs` and `id` where given, plus the project's task-type declaration (`task_type_registrations`, ADR-0013 K2), and refuses before the call what the board would mis-handle: an unknown spec key, a `build`-family label, a dependency naming no task, a bad id, a malformed declaration, a project name containing "test" |
 | `marcus_toolkit.watchdog` | stops a run the moment its spend reaches the approved line; the line is re-read on every poll when it comes from a file |
 | `marcus_toolkit.pricing`, `marcus_toolkit.usage` | one price table; usage rows read from pi's transcripts or from `<state>/<agent>/usage.jsonl`, one row per model call, which any runtime can write |
 | `marcus_toolkit.sampler` | reads the board from outside every few seconds and applies the drain verdict's claimability rule, so frontier width has a time series |
@@ -42,7 +42,7 @@ For the Node client, import `node/board.js` and `node/mcp-http.js` directly; the
 python -m marcus_toolkit.livecheck --checkout ~/dev/marcus --out livecheck-runs
 ```
 
-Starts a server under test from that checkout, seeds two tasks (the second depending on the first), runs one scripted agent through register, pull, report, pull, report, drain, reads the board from outside before and after, and writes `livecheck-runs/<stamp>/VERDICT.json`.
+Starts a server under test from that checkout, seeds two tasks (the second depending on the first, typed `echo` with its own id and inputs, and declared on the project record), runs one scripted agent through register, pull, report, pull, report, drain, reads the board from outside before and after, and writes `livecheck-runs/<stamp>/VERDICT.json`.
 It passes only when every card closed, the agent heard the drain, every reply was read back, and the server log carries no model-provider host.
 CI runs it against the Marcus commit pinned in `.github/workflows/ci.yml`.
 
