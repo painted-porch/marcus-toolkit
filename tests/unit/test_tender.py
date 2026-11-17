@@ -153,11 +153,12 @@ def test_load_build_seed_imports_module_function(tmp_path, monkeypatch):
 
 def test_the_default_rule_is_the_one_every_run_to_date_used():
     """No flag given means the shipped rule, unchanged."""
-    assert tender.resolve_rule(candidates.MARGIN, False, False) == (1, False)
+    assert tender.resolve_rule(None, False, False) == (candidates.MARGIN, False)
+    assert (candidates.MARGIN, candidates.ABSTAIN_AGAINST) == (1, False)
 
 
 def test_policy_e_turns_on_both_halves_of_the_rule():
-    assert tender.resolve_rule(candidates.MARGIN, False, True) == (2, True)
+    assert tender.resolve_rule(None, False, True) == (candidates.POLICY_E_MARGIN, True)
 
 
 def test_an_explicit_margin_wins_over_the_one_policy_e_would_imply():
@@ -165,8 +166,14 @@ def test_an_explicit_margin_wins_over_the_one_policy_e_would_imply():
     assert tender.resolve_rule(3, False, True) == (3, True)
 
 
+def test_an_explicit_margin_of_one_is_honoured_under_policy_e():
+    """The flag is None when unset, so an explicit 1 is not mistaken for the
+    default and silently raised to 2."""
+    assert tender.resolve_rule(1, False, True) == (1, True)
+
+
 def test_the_two_knobs_can_be_set_without_policy_e():
     """Counting silence at the original margin is the setting that did the work
     in the war study, and it is reachable on its own."""
-    assert tender.resolve_rule(candidates.MARGIN, True, False) == (1, True)
+    assert tender.resolve_rule(None, True, False) == (1, True)
     assert tender.resolve_rule(2, False, False) == (2, False)

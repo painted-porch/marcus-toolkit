@@ -45,19 +45,21 @@ from .client import MarcusMCPClient
 
 
 def resolve_rule(
-    margin: int, abstain_against: bool, policy_e: bool
+    margin: int | None, abstain_against: bool, policy_e: bool
 ) -> tuple[int, bool]:
     """
     Settle the admission rule from the three flags that can set it.
 
     ``--policy-e`` is shorthand, so it turns on counting abstentions and
-    raises the margin, but an explicitly given ``--margin`` wins over the one
-    it would imply. Without any of them the shipped rule comes back unchanged.
+    raises the margin, but an explicitly given ``--margin`` always wins over
+    the one it would imply. ``margin`` is ``None`` when the flag was not
+    given, so ``--policy-e --margin 1`` is honoured as a margin of one rather
+    than being mistaken for the default.
 
     Parameters
     ----------
-    margin : int
-        What ``--margin`` was given, or :data:`MARGIN` when it was not.
+    margin : Optional[int]
+        What ``--margin`` was given, or ``None`` when it was not.
     abstain_against : bool
         Whether ``--abstain-against`` was given.
     policy_e : bool
@@ -68,9 +70,9 @@ def resolve_rule(
     Tuple[int, bool]
         The margin and whether an abstention is contrary evidence.
     """
-    if not policy_e:
-        return margin, abstain_against
-    return (POLICY_E_MARGIN if margin == MARGIN else margin), True
+    if margin is None:
+        margin = POLICY_E_MARGIN if policy_e else MARGIN
+    return margin, abstain_against or policy_e
 
 
 def now_iso() -> str:
@@ -345,9 +347,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--margin",
         type=int,
-        default=MARGIN,
+        default=None,
         help="how far supporters must exceed contrary evidence to promote a candidate"
-        f" (default {MARGIN}, the shipped rule: supporters outnumber objectors)",
+        f" (default {MARGIN}, the shipped rule: supporters outnumber objectors);"
+        " given explicitly it wins over the margin --policy-e would imply",
     )
     parser.add_argument(
         "--abstain-against",
