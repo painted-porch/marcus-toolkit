@@ -6,9 +6,11 @@ from typing import Any
 import pytest
 
 from marcus_toolkit.candidates import (
+    ABSTAIN_AGAINST,
     CANDIDATE_PREFIX,
     CLOSE_MARK,
     EVAPORATION_SECONDS,
+    MARGIN,
     POST_MARK,
     THRESHOLD,
     VETO_SECONDS,
@@ -55,7 +57,9 @@ def _op(agent: str, what: str, ts: str) -> dict[str, Any]:
     return {"agent_id": agent, "what": what, "timestamp": ts}
 
 
-def _cand(supporters, objectors, posted_at=T0, observers=None) -> Candidate:
+def _cand(
+    supporters, objectors, posted_at=T0, observers=None, abstainers=None
+) -> Candidate:
     return Candidate(
         subject="candidate.x",
         spec={**SPEC, "name": "x"},
@@ -63,6 +67,7 @@ def _cand(supporters, objectors, posted_at=T0, observers=None) -> Candidate:
         supporters=supporters,
         objectors=objectors,
         observers=observers or [],
+        abstainers=abstainers or [],
     )
 
 
@@ -243,3 +248,63 @@ def test_candidate_from_observation_returns_none_when_the_rule_has_no_card():
     assert candidate_from_observation(entry, lambda _e: None) is None
     spec = candidate_from_observation(entry, lambda _e: {"name": "Hold it"})
     assert spec is not None and spec["observers"] == ["a", "b"]
+
+
+def test_the_default_margin_is_one_and_an_abstention_is_not_contrary():
+    """The shipped rule is unchanged: supporters need only outnumber objectors,
+    and a NO EVIDENCE: answer carries no weight in the promotion arithmetic."""
+    assert decide(_cand(["a", "b"], [], abstainers=["c", "d"]), now=T1) == "promote"
+    assert decide(_cand(["a", "b"], ["c"], abstainers=["d"]), now=T1) == "promote"
+    assert MARGIN == 1
+    assert ABSTAIN_AGAINST is False
+
+
+def test_a_wider_margin_asks_supporters_to_clear_contrary_evidence_by_more():
+    """At margin 2 a two-against-one candidate no longer carries."""
+    assert decide(_cand(["a", "b"], []), now=T1, margin=2) == "promote"
+    assert decide(_cand(["a", "b"], ["c"]), now=T1, margin=2) == "wait"
+    assert decide(_cand(["a", "b", "c"], ["d"]), now=T1, margin=2) == "promote"
+
+
+def test_counting_an_abstention_as_contrary_blocks_a_candidate_nobody_can_vouch_for():
+    """Two supporters and two abstentions is the shape a planted report produced."""
+    votes = _cand(["a", "b"], [], abstainers=["c", "d"])
+    assert decide(votes, now=T1) == "promote"
+    assert decide(votes, now=T1, abstain_against=True) == "wait"
+    assert decide(_cand(["a", "b"], [], abstainers=["c"]), now=T1, abstain_against=True) == "promote"
+
+
+def test_policy_e_is_the_two_knobs_together():
+    """Margin 2 with abstentions counted: two supporters and one abstention fails."""
+    assert decide(_cand(["a", "b"], [], abstainers=["c"]), now=T1, margin=2, abstain_against=True) == "wait"
+    assert decide(_cand(["a", "b"], [], abstainers=[]), now=T1, margin=2, abstain_against=True) == "promote"
+
+
+def test_the_margin_applies_to_an_observer_born_candidate_too():
+    """A card grown from corroboration clears the same bar, after its veto window."""
+    after = "2026-11-06T04:05:00+00:00"
+    c = _cand(["a", "b"], ["c"], observers=["a", "b"])
+    assert decide(c, now=after) == "promote"
+    assert decide(c, now=after, margin=2) == "evaporate"
+
+
+def test_a_stricter_rule_never_promotes_what_the_default_refused():
+    """The property the offline replay in the war study depends on."""
+    shapes = [
+        (["a", "b"], [], []),
+        (["a", "b"], ["c"], []),
+        (["a", "b"], [], ["c"]),
+        (["a", "b"], ["c", "d"], []),
+        (["a"], [], []),
+        (["a", "b", "c"], ["d"], ["e"]),
+    ]
+    for sup, obj, abst in shapes:
+        c = _cand(sup, obj, abstainers=abst)
+        if decide(c, now=T1, margin=2, abstain_against=True) == "promote":
+            assert decide(c, now=T1) == "promote", (sup, obj, abst)
+
+
+def test_a_margin_below_one_is_refused_so_silence_can_never_put_work_on_the_board():
+    """A margin of zero would promote a tie; the rule forbids configuring that."""
+    with pytest.raises(ValueError):
+        decide(_cand(["a", "b"], ["c", "d"]), now=T1, margin=0)

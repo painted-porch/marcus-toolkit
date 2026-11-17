@@ -391,3 +391,49 @@ def test_observations_group_by_the_extension_key_before_the_threshold():
         "candidate.z",
     ]
     assert tending.group_observations(entries, None, set()) is entries
+
+
+def test_the_admission_rule_reaches_the_board_and_policy_e_holds_the_gate(tmp_path):
+    """Two supporters and two abstentions is the vote a planted report produced in
+    the war study. The default rule promotes it; Policy E refuses it, and no task
+    is created."""
+    votes = [
+        ("blue-1", "my block is 60 px off"),
+        ("blue-2", "I see them too"),
+        ("blue-3", "NO EVIDENCE: nothing in my sector"),
+        ("blue-4", "NO EVIDENCE: cannot judge this"),
+    ]
+
+    default_board = FakeBoard()
+    actions = _tend(default_board, [_entry(posts=votes)], tmp_path / "default.jsonl")
+    assert actions["promoted"] == [S]
+    assert any(name == "create_tasks" for name, _ in default_board.calls)
+
+    strict_board = FakeBoard()
+    strict = _tend(
+        strict_board,
+        [_entry(posts=votes)],
+        tmp_path / "strict.jsonl",
+        margin=2,
+        abstain_against=True,
+    )
+    assert strict["promoted"] == []
+    assert not any(name == "create_tasks" for name, _ in strict_board.calls)
+
+
+def test_counting_silence_alone_is_enough_to_hold_the_gate(tmp_path):
+    """The margin was not the half that did the work: at the original margin of
+    one, counting an abstention as contrary evidence already refuses the card."""
+    votes = [
+        ("blue-1", "my block is 60 px off"),
+        ("blue-2", "I see them too"),
+        ("blue-3", "NO EVIDENCE: nothing in my sector"),
+        ("blue-4", "NO EVIDENCE: cannot judge this"),
+    ]
+    actions = _tend(
+        FakeBoard(), [_entry(posts=votes)], tmp_path / "c.jsonl", abstain_against=True
+    )
+    assert actions["promoted"] == []
+
+    wider = _tend(FakeBoard(), [_entry(posts=votes)], tmp_path / "d.jsonl", margin=2)
+    assert wider["promoted"] == [S], "the wider margin alone lets this vote through"

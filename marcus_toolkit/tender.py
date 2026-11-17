@@ -34,8 +34,43 @@ from pathlib import Path
 from typing import Any
 
 from . import measure, tending, views
-from .candidates import PLANNED_LABEL, can_post
+from .candidates import (
+    ABSTAIN_AGAINST,
+    MARGIN,
+    PLANNED_LABEL,
+    POLICY_E_MARGIN,
+    can_post,
+)
 from .client import MarcusMCPClient
+
+
+def resolve_rule(
+    margin: int, abstain_against: bool, policy_e: bool
+) -> tuple[int, bool]:
+    """
+    Settle the admission rule from the three flags that can set it.
+
+    ``--policy-e`` is shorthand, so it turns on counting abstentions and
+    raises the margin, but an explicitly given ``--margin`` wins over the one
+    it would imply. Without any of them the shipped rule comes back unchanged.
+
+    Parameters
+    ----------
+    margin : int
+        What ``--margin`` was given, or :data:`MARGIN` when it was not.
+    abstain_against : bool
+        Whether ``--abstain-against`` was given.
+    policy_e : bool
+        Whether ``--policy-e`` was given.
+
+    Returns
+    -------
+    Tuple[int, bool]
+        The margin and whether an abstention is contrary evidence.
+    """
+    if not policy_e:
+        return margin, abstain_against
+    return (POLICY_E_MARGIN if margin == MARGIN else margin), True
 
 
 def now_iso() -> str:
@@ -122,8 +157,12 @@ class Tender:
         build_seed: Callable[[dict[str, Any]], dict[str, Any] | None] | None = None,
         no_evidence_neutral: bool = False,
         observation_key: Callable[[dict[str, Any]], str | None] | None = None,
+        margin: int = MARGIN,
+        abstain_against: bool = ABSTAIN_AGAINST,
     ) -> None:
         self.build_seed = build_seed
+        self.margin = margin
+        self.abstain_against = abstain_against
         self.no_evidence_neutral = no_evidence_neutral
         self.observation_key = observation_key
         self.client = client
@@ -218,6 +257,8 @@ class Tender:
             build_seed=self.build_seed,
             no_evidence_neutral=self.no_evidence_neutral,
             observation_key=self.observation_key,
+            margin=self.margin,
+            abstain_against=self.abstain_against,
         )
         self.last_open = list(actions.get("open_specs") or [])
         self.last_views = tally
@@ -301,7 +342,32 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="NO EVIDENCE is neither support nor a decline; only objections decline",
     )
+    parser.add_argument(
+        "--margin",
+        type=int,
+        default=MARGIN,
+        help="how far supporters must exceed contrary evidence to promote a candidate"
+        f" (default {MARGIN}, the shipped rule: supporters outnumber objectors)",
+    )
+    parser.add_argument(
+        "--abstain-against",
+        action="store_true",
+        help="count a NO EVIDENCE: answer as contrary evidence when deciding a"
+        " promotion; off by default, where it is neither support nor opposition."
+        " This is a different question from --no-evidence-neutral, which decides"
+        " whether an abstention counts as a decline toward evaporation",
+    )
+    parser.add_argument(
+        "--policy-e",
+        action="store_true",
+        help="shorthand for --margin 2 --abstain-against: Nevin's Policy E, two"
+        " reports and a margin of two over contrary evidence. An explicit"
+        " --margin wins over the one this implies",
+    )
     args = parser.parse_args(argv)
+    args.margin, args.abstain_against = resolve_rule(
+        args.margin, args.abstain_against, args.policy_e
+    )
 
     client = MarcusMCPClient(args.url, timeout=60)
     if not client.connect():
@@ -329,6 +395,8 @@ def main(argv: list[str] | None = None) -> int:
         build_seed=build_seed,
         no_evidence_neutral=args.no_evidence_neutral,
         observation_key=observation_key,
+        margin=args.margin,
+        abstain_against=args.abstain_against,
     )
 
     def stop(signum: int, frame: Any) -> None:

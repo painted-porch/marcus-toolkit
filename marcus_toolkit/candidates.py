@@ -32,6 +32,21 @@ CANDIDATE_PREFIX = "candidate."
 PROPOSAL_PREFIX = "propose."
 #: "Only two agents need to support a promotion." (Larry, 2026-11-06)
 THRESHOLD = 2
+#: How far supporters must exceed contrary evidence. One is the shipped rule,
+#: "supporters outnumber objectors". A wider margin is Nevin's Policy E
+#: (``guruswami-ai/flockinator``), which asks for two reports *and* a margin of
+#: two. Below one a tie would carry, so :func:`decide` refuses it.
+MARGIN = 1
+#: Whether a ``NO EVIDENCE:`` answer counts as contrary evidence when deciding
+#: a promotion. False is the shipped rule: "I cannot judge this" is not a vote,
+#: so it neither carries a candidate nor blocks one. Note this is a different
+#: question from whether an abstention counts as a *decline* toward
+#: evaporation, which ``tending.tend_candidates`` takes separately as
+#: ``no_evidence_neutral``.
+ABSTAIN_AGAINST = False
+#: The margin Nevin's Policy E asks for, named so a caller can say which rule
+#: it is turning on rather than passing a bare number.
+POLICY_E_MARGIN = 2
 #: The superseded seconds window (Larry, 2026-11-06, "evaporation after 4.5
 #: minutes"), kept so the runs measured with it stay reproducible.
 EVAPORATION_SECONDS = 270
@@ -297,15 +312,23 @@ def decide(
     declines_needed: int = DECLINES_NEEDED,
     awaiting: int | None = None,
     settling_seconds: int = 0,
+    margin: int = MARGIN,
+    abstain_against: bool = ABSTAIN_AGAINST,
 ) -> str:
     """
     Apply the fixed rule: ``"promote"``, ``"wait"`` or ``"evaporate"``.
 
     A candidate promotes when at least two distinct agents support it and
-    supporters outnumber objectors (a tie does not carry; declines are not
-    votes against). Support born from observers promotes only after
+    supporters exceed contrary evidence by ``margin`` (at the default margin of
+    one a tie does not carry). Support born from observers promotes only after
     ``veto_seconds``. There is no clock-based promotion: silence never puts
     work on the board.
+
+    The defaults are the rule as shipped and as every run to date was measured
+    under, so calling this without ``margin`` or ``abstain_against`` behaves
+    exactly as before. Raising the margin, or counting an abstention as
+    contrary evidence, can only ever refuse a candidate the defaults admitted;
+    neither can admit one they refused.
 
     Parameters
     ----------
@@ -331,11 +354,22 @@ def decide(
     settling_seconds : int
         How long after support reaches the threshold before promotion, so a
         late objection can still land. An objection inside the window blocks.
+    margin : int
+        How far supporters must exceed contrary evidence. Must be at least one.
+    abstain_against : bool
+        Whether a ``NO EVIDENCE:`` answer counts as contrary evidence here.
 
     Returns
     -------
     str
+
+    Raises
+    ------
+    ValueError
+        When ``margin`` is below one, which would let a tie carry.
     """
+    if margin < 1:
+        raise ValueError(f"margin must be at least 1, got {margin}: a tie would carry")
     age = candidate.age_seconds(now)
     if declined_by is not None:
         expired = declined_by >= declines_needed
@@ -345,8 +379,10 @@ def decide(
     exhausted = awaiting is not None and awaiting <= 0
     observers = set(candidate.observers)
     posted = {s for s in candidate.supporters if s not in observers}
-    objectors = len(set(candidate.objectors))
-    if len(posted) >= THRESHOLD and len(posted) > objectors:
+    contrary = len(set(candidate.objectors))
+    if abstain_against:
+        contrary += len(set(candidate.abstainers) - set(candidate.objectors))
+    if len(posted) >= THRESHOLD and len(posted) - contrary >= margin:
         if settling_seconds <= 0 or exhausted:
             return "promote"
         complete = candidate.support_complete_at()
@@ -356,7 +392,7 @@ def decide(
         return "promote" if waited >= settling_seconds else "wait"
     if (
         len(set(candidate.supporters)) >= THRESHOLD
-        and len(set(candidate.supporters)) > objectors
+        and len(set(candidate.supporters)) - contrary >= margin
     ):
         return "promote" if age >= veto_seconds else "wait"
     return "evaporate" if expired or exhausted else "wait"

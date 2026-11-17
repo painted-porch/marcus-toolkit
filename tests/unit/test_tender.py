@@ -5,6 +5,7 @@ import sqlite3
 
 import pytest
 
+from marcus_toolkit import candidates, tender
 from marcus_toolkit.candidates import POST_MARK
 from marcus_toolkit.tender import Tender, board_tasks
 
@@ -148,3 +149,24 @@ def test_load_build_seed_imports_module_function(tmp_path, monkeypatch):
 
     with pytest.raises(ValueError):
         load_build_seed("nocolon")
+
+
+def test_the_default_rule_is_the_one_every_run_to_date_used():
+    """No flag given means the shipped rule, unchanged."""
+    assert tender.resolve_rule(candidates.MARGIN, False, False) == (1, False)
+
+
+def test_policy_e_turns_on_both_halves_of_the_rule():
+    assert tender.resolve_rule(candidates.MARGIN, False, True) == (2, True)
+
+
+def test_an_explicit_margin_wins_over_the_one_policy_e_would_imply():
+    """So `--policy-e --margin 3` is a margin of three, not two."""
+    assert tender.resolve_rule(3, False, True) == (3, True)
+
+
+def test_the_two_knobs_can_be_set_without_policy_e():
+    """Counting silence at the original margin is the setting that did the work
+    in the war study, and it is reachable on its own."""
+    assert tender.resolve_rule(candidates.MARGIN, True, False) == (1, True)
+    assert tender.resolve_rule(2, False, False) == (2, False)
