@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "marcus-toolkit"
-version = "0.1.0"
+version = "0.1.1"
 description = "The run-side toolbox Marcus extensions share: a server under test, seeding, run guards, the cost watchdog, the board sampler, measures, the run record, and a pull-loop agent shell"
 readme = "README.md"
 license = { file = "LICENSE" }

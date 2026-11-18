@@ -3,7 +3,7 @@
 All notable changes to marcus-toolkit are recorded here.
 The format follows Keep a Changelog, and versions follow Semantic Versioning.
 
-## [Unreleased]
+## [0.1.1] - 2026-11-18
 
 ### Added
 - `seed` carries the typed-chain fields Marcus accepts since `b33dad5f` (ADR-0013 K2, the MCP-only write path, painted-porch/marcus #911): a spec may name its `task_type`, `inputs` and final `id`, `depends_on` may name a task by that id, and `seed_project(task_type_registrations=...)` sends the project's K2 task-type declaration in the same `create_project` call.
@@ -16,4 +16,10 @@ The live check seeds its second card typed `echo` with an id and inputs, declare
 The server config now switches the kernel's context feature on, because opinions and decisions are refused without it; and both clients register before any write, because the kernel records an opinion against the agent's registered project and refuses one from an agent it has not seen.
 Proven live by the wargame's deliberation rehearsal on 2026-11-11: both chains PROVEN, one candidate per side ratified and worked to a closed task, two per side evaporated by declines, zero model calls.
 - `node/`: the same client in Node, `mcp-http.js` and `board.js`, lifted from marcus-minecraft's `src/marcus/` and reduced to what a runtime without a game body needs.
+- The admission rule is configurable, and its default is the rule as shipped (painted-porch/marcus-toolkit #4).
+`decide()` takes `margin`, how far supporters must exceed contrary evidence, and `abstain_against`, whether a `NO EVIDENCE:` answer counts as contrary evidence for a promotion; `tend_candidates` and `Tender` pass both through, and `python -m marcus_toolkit.tender` gains `--margin`, `--abstain-against` and `--policy-e` (shorthand for `--margin 2 --abstain-against`, after Policy E in `guruswami-ai/flockinator`).
+`--abstain-against` is a separate question from the existing `--no-evidence-neutral`: the first decides whether an abstention is contrary evidence for opening a card, the second whether it is a decline toward the card evaporating.
+Raising the margin or counting silence can only ever refuse a candidate the defaults admitted, never admit one they refused; that subset property is swept over 5,832 vote shapes rather than asserted on a handful.
+Closing a hole in it changed one default: the observation route now waits out the settling window instead of skipping it, which moves 90 of those 5,832 verdicts, every one with `settling_seconds` above zero and none of the 1,944 at `settling_seconds=0`, the CLI default and what every measured run used.
+Why it exists: in a wargame study on this toolbox a planted false report became a card five times across four battles, each time on two supporters, no objectors and two or three abstentions, so the answer that would have stopped it was on the board and the arithmetic discarded it (`painted-porch/no-hand-on-the-table`, `RESULTS.md`).
 - Publishing: a `publish.yml` workflow builds the package and publishes it to PyPI by trusted publishing when a `v*` tag is pushed; `pyproject.toml` gains classifiers and project URLs. (#pypi)
