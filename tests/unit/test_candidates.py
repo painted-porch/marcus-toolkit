@@ -271,13 +271,29 @@ def test_counting_an_abstention_as_contrary_blocks_a_candidate_nobody_can_vouch_
     votes = _cand(["a", "b"], [], abstainers=["c", "d"])
     assert decide(votes, now=T1) == "promote"
     assert decide(votes, now=T1, abstain_against=True) == "wait"
-    assert decide(_cand(["a", "b"], [], abstainers=["c"]), now=T1, abstain_against=True) == "promote"
+    assert (
+        decide(_cand(["a", "b"], [], abstainers=["c"]), now=T1, abstain_against=True)
+        == "promote"
+    )
 
 
 def test_policy_e_is_the_two_knobs_together():
     """Margin 2 with abstentions counted: two supporters and one abstention fails."""
-    assert decide(_cand(["a", "b"], [], abstainers=["c"]), now=T1, margin=2, abstain_against=True) == "wait"
-    assert decide(_cand(["a", "b"], [], abstainers=[]), now=T1, margin=2, abstain_against=True) == "promote"
+    assert (
+        decide(
+            _cand(["a", "b"], [], abstainers=["c"]),
+            now=T1,
+            margin=2,
+            abstain_against=True,
+        )
+        == "wait"
+    )
+    assert (
+        decide(
+            _cand(["a", "b"], [], abstainers=[]), now=T1, margin=2, abstain_against=True
+        )
+        == "promote"
+    )
 
 
 def test_the_margin_applies_to_an_observer_born_candidate_too():
@@ -322,11 +338,17 @@ def test_the_observer_branch_does_not_let_a_stricter_rule_jump_a_settling_window
         supporters=["o1", "o2", "p1", "p2"],
         objectors=["c1"],
         observers=["o1", "o2"],
-        answered_at={"p1": "2026-11-06T04:02:00+00:00", "p2": "2026-11-06T04:02:01+00:00"},
+        answered_at={
+            "p1": "2026-11-06T04:02:00+00:00",
+            "p2": "2026-11-06T04:02:01+00:00",
+        },
     )
     now = "2026-11-06T04:02:10+00:00"  # age 130s, posted support completed 9s ago
     assert decide(c, now=now, settling_seconds=30) == "wait"
-    assert decide(c, now=now, settling_seconds=30, margin=2, abstain_against=True) != "promote"
+    assert (
+        decide(c, now=now, settling_seconds=30, margin=2, abstain_against=True)
+        != "promote"
+    )
 
 
 def test_no_vote_shape_lets_a_stricter_rule_promote_what_the_default_refused():
@@ -335,39 +357,72 @@ def test_no_vote_shape_lets_a_stricter_rule_promote_what_the_default_refused():
     violations = []
     # "answered just before now" is the case that matters: the candidate is old
     # enough to clear the veto window while its posted support is still settling.
-    nows = {"2026-11-06T04:01:00+00:00": ["2026-11-06T04:00:50+00:00", "2026-11-06T04:00:59+00:00"],
-            "2026-11-06T04:10:00+00:00": ["2026-11-06T04:09:50+00:00", "2026-11-06T04:09:59+00:00"],
-            "2026-11-06T04:02:10+00:00": ["2026-11-06T04:02:00+00:00", "2026-11-06T04:02:01+00:00"]}
+    nows = {
+        "2026-11-06T04:01:00+00:00": [
+            "2026-11-06T04:00:50+00:00",
+            "2026-11-06T04:00:59+00:00",
+        ],
+        "2026-11-06T04:10:00+00:00": [
+            "2026-11-06T04:09:50+00:00",
+            "2026-11-06T04:09:59+00:00",
+        ],
+        "2026-11-06T04:02:10+00:00": [
+            "2026-11-06T04:02:00+00:00",
+            "2026-11-06T04:02:01+00:00",
+        ],
+    }
     old_stamps = ["2026-11-06T04:00:10+00:00", "2026-11-06T04:00:20+00:00"]
     for observers in ([], ["o1"], ["o1", "o2"]):
         for posted in ([], ["p1"], ["p1", "p2"], ["p1", "p2", "p3"]):
             for objectors in ([], ["c1"], ["c1", "c2"]):
                 for abstainers in ([], ["a1"], ["a1", "a2"]):
                     for settling in (0, 30, 120):
-                      for now, fresh in nows.items():
-                        for stamps in (fresh, old_stamps):
-                            c = Candidate(
-                                subject="candidate.x",
-                                spec={**SPEC, "name": "x"},
-                                posted_at="2026-11-06T04:00:00+00:00",
-                                supporters=list(observers) + list(posted),
-                                objectors=objectors,
-                                observers=observers,
-                                abstainers=abstainers,
-                                answered_at={p: stamps[i % 2] for i, p in enumerate(posted)},
-                            )
-                            loose = decide(c, now=now, settling_seconds=settling)
-                            for margin, against in ((2, False), (1, True), (2, True)):
-                                strict = decide(
-                                    c, now=now, settling_seconds=settling,
-                                    margin=margin, abstain_against=against,
+                        for now, fresh in nows.items():
+                            for stamps in (fresh, old_stamps):
+                                c = Candidate(
+                                    subject="candidate.x",
+                                    spec={**SPEC, "name": "x"},
+                                    posted_at="2026-11-06T04:00:00+00:00",
+                                    supporters=list(observers) + list(posted),
+                                    objectors=objectors,
+                                    observers=observers,
+                                    abstainers=abstainers,
+                                    answered_at={
+                                        p: stamps[i % 2] for i, p in enumerate(posted)
+                                    },
                                 )
-                                if strict == "promote" and loose != "promote":
-                                    violations.append(
-                                        (observers, posted, objectors, abstainers, settling,
-                                         now, stamps[0], margin, against, loose, strict)
+                                loose = decide(c, now=now, settling_seconds=settling)
+                                for margin, against in (
+                                    (2, False),
+                                    (1, True),
+                                    (2, True),
+                                ):
+                                    strict = decide(
+                                        c,
+                                        now=now,
+                                        settling_seconds=settling,
+                                        margin=margin,
+                                        abstain_against=against,
                                     )
-    assert not violations, f"{len(violations)} shapes where a stricter rule promoted and the default did not: {violations[:3]}"
+                                    if strict == "promote" and loose != "promote":
+                                        violations.append(
+                                            (
+                                                observers,
+                                                posted,
+                                                objectors,
+                                                abstainers,
+                                                settling,
+                                                now,
+                                                stamps[0],
+                                                margin,
+                                                against,
+                                                loose,
+                                                strict,
+                                            )
+                                        )
+    assert (
+        not violations
+    ), f"{len(violations)} shapes where a stricter rule promoted and the default did not: {violations[:3]}"
 
 
 def test_the_observation_route_now_honours_the_settling_window_too():
@@ -385,7 +440,10 @@ def test_the_observation_route_now_honours_the_settling_window_too():
         supporters=["o1", "p1", "p2"],
         objectors=["c1", "c2"],
         observers=["o1"],
-        answered_at={"p1": "2026-11-06T04:09:50+00:00", "p2": "2026-11-06T04:09:59+00:00"},
+        answered_at={
+            "p1": "2026-11-06T04:09:50+00:00",
+            "p2": "2026-11-06T04:09:59+00:00",
+        },
     )
     now = "2026-11-06T04:10:00+00:00"
     assert decide(c, now=now, settling_seconds=0) == "promote"

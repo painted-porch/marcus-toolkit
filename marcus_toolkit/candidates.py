@@ -384,6 +384,7 @@ def decide(
     contrary = len(set(candidate.objectors))
     if abstain_against:
         contrary += len(set(candidate.abstainers) - set(candidate.objectors))
+
     def settled() -> bool:
         """Whether the settling window for the posted support has run out."""
         if settling_seconds <= 0 or exhausted:
