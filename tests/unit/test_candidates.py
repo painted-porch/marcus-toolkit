@@ -308,3 +308,100 @@ def test_a_margin_below_one_is_refused_so_silence_can_never_put_work_on_the_boar
     """A margin of zero would promote a tie; the rule forbids configuring that."""
     with pytest.raises(ValueError):
         decide(_cand(["a", "b"], ["c", "d"]), now=T1, margin=0)
+
+
+def test_the_observer_branch_does_not_let_a_stricter_rule_jump_a_settling_window():
+    """Codex P1 on marcus-toolkit#4. With mixed observer and posted support, the
+    stricter rule failed the posted branch, fell through to the observer branch,
+    and promoted immediately, while the default was still waiting out the
+    settling window. That inverts the subset property."""
+    c = Candidate(
+        subject="candidate.x",
+        spec={**SPEC, "name": "x"},
+        posted_at="2026-11-06T04:00:00+00:00",
+        supporters=["o1", "o2", "p1", "p2"],
+        objectors=["c1"],
+        observers=["o1", "o2"],
+        answered_at={"p1": "2026-11-06T04:02:00+00:00", "p2": "2026-11-06T04:02:01+00:00"},
+    )
+    now = "2026-11-06T04:02:10+00:00"  # age 130s, posted support completed 9s ago
+    assert decide(c, now=now, settling_seconds=30) == "wait"
+    assert decide(c, now=now, settling_seconds=30, margin=2, abstain_against=True) != "promote"
+
+
+def test_no_vote_shape_lets_a_stricter_rule_promote_what_the_default_refused():
+    """The subset property, swept rather than hand-picked: every combination of
+    observer and posted support, objections, abstentions, age and settling."""
+    violations = []
+    # "answered just before now" is the case that matters: the candidate is old
+    # enough to clear the veto window while its posted support is still settling.
+    nows = {"2026-11-06T04:01:00+00:00": ["2026-11-06T04:00:50+00:00", "2026-11-06T04:00:59+00:00"],
+            "2026-11-06T04:10:00+00:00": ["2026-11-06T04:09:50+00:00", "2026-11-06T04:09:59+00:00"],
+            "2026-11-06T04:02:10+00:00": ["2026-11-06T04:02:00+00:00", "2026-11-06T04:02:01+00:00"]}
+    old_stamps = ["2026-11-06T04:00:10+00:00", "2026-11-06T04:00:20+00:00"]
+    for observers in ([], ["o1"], ["o1", "o2"]):
+        for posted in ([], ["p1"], ["p1", "p2"], ["p1", "p2", "p3"]):
+            for objectors in ([], ["c1"], ["c1", "c2"]):
+                for abstainers in ([], ["a1"], ["a1", "a2"]):
+                    for settling in (0, 30, 120):
+                      for now, fresh in nows.items():
+                        for stamps in (fresh, old_stamps):
+                            c = Candidate(
+                                subject="candidate.x",
+                                spec={**SPEC, "name": "x"},
+                                posted_at="2026-11-06T04:00:00+00:00",
+                                supporters=list(observers) + list(posted),
+                                objectors=objectors,
+                                observers=observers,
+                                abstainers=abstainers,
+                                answered_at={p: stamps[i % 2] for i, p in enumerate(posted)},
+                            )
+                            loose = decide(c, now=now, settling_seconds=settling)
+                            for margin, against in ((2, False), (1, True), (2, True)):
+                                strict = decide(
+                                    c, now=now, settling_seconds=settling,
+                                    margin=margin, abstain_against=against,
+                                )
+                                if strict == "promote" and loose != "promote":
+                                    violations.append(
+                                        (observers, posted, objectors, abstainers, settling,
+                                         now, stamps[0], margin, against, loose, strict)
+                                    )
+    assert not violations, f"{len(violations)} shapes where a stricter rule promoted and the default did not: {violations[:3]}"
+
+
+def test_the_observation_route_now_honours_the_settling_window_too():
+    """A deliberate change to the default rule, and the only one on this branch.
+
+    Closing the subset hole meant the observation route can no longer promote
+    while posted support is still settling. Previously it skipped the window
+    entirely. With ``settling_seconds=0``, which is the CLI default and what
+    every measured run used, nothing changes at all.
+    """
+    c = Candidate(
+        subject="candidate.x",
+        spec={**SPEC, "name": "x"},
+        posted_at="2026-11-06T04:00:00+00:00",
+        supporters=["o1", "p1", "p2"],
+        objectors=["c1", "c2"],
+        observers=["o1"],
+        answered_at={"p1": "2026-11-06T04:09:50+00:00", "p2": "2026-11-06T04:09:59+00:00"},
+    )
+    now = "2026-11-06T04:10:00+00:00"
+    assert decide(c, now=now, settling_seconds=0) == "promote"
+    assert decide(c, now=now, settling_seconds=30) == "wait"
+
+
+def test_a_candidate_with_no_observers_is_decided_by_the_posted_test_alone():
+    """With no observers the two doors test the same set of agents, so the
+    ``observers`` gate on the observation route is behaviour-neutral. It is
+    there to say the route is a second door and not a lower one, and no test
+    can distinguish it; this pins the verdict it must not change."""
+    c = Candidate(
+        subject="candidate.x",
+        spec={**SPEC, "name": "x"},
+        posted_at="2026-11-06T04:00:00+00:00",
+        supporters=["p1", "p2"],
+        objectors=["c1", "c2"],
+    )
+    assert decide(c, now="2026-11-06T04:10:00+00:00") == "evaporate"

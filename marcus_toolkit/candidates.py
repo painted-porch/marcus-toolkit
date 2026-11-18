@@ -328,7 +328,9 @@ def decide(
     under, so calling this without ``margin`` or ``abstain_against`` behaves
     exactly as before. Raising the margin, or counting an abstention as
     contrary evidence, can only ever refuse a candidate the defaults admitted;
-    neither can admit one they refused.
+    neither can admit one they refused. That subset property is swept over
+    every vote shape in the tests, because the observation route below once
+    broke it.
 
     Parameters
     ----------
@@ -382,19 +384,32 @@ def decide(
     contrary = len(set(candidate.objectors))
     if abstain_against:
         contrary += len(set(candidate.abstainers) - set(candidate.objectors))
-    if len(posted) >= THRESHOLD and len(posted) - contrary >= margin:
+    def settled() -> bool:
+        """Whether the settling window for the posted support has run out."""
         if settling_seconds <= 0 or exhausted:
-            return "promote"
+            return True
         complete = candidate.support_complete_at()
         if complete is None:
-            return "promote"
-        waited = (_when(now) - _when(complete)).total_seconds()
-        return "promote" if waited >= settling_seconds else "wait"
+            return True
+        return (_when(now) - _when(complete)).total_seconds() >= settling_seconds
+
+    if len(posted) >= THRESHOLD and len(posted) - contrary >= margin:
+        return "promote" if settled() else "wait"
+    # The observation route, for a candidate born from agreeing observers: its
+    # observers count as supporters and it opens after the veto window. It is a
+    # second door, not a lower one, so it waits out the same settling window.
+    # Without that, a stricter rule could fail the posted test, fall through
+    # here on the larger supporter set, and promote while the default was still
+    # settling, which inverted the subset property (Codex P1 on #4).
+    # The ``observers`` guard is behaviour-neutral, because with no observers
+    # the two doors test the same set. It is here to state the intent, so this
+    # never again reads as a weaker fallback for a candidate that has none.
     if (
-        len(set(candidate.supporters)) >= THRESHOLD
+        observers
+        and len(set(candidate.supporters)) >= THRESHOLD
         and len(set(candidate.supporters)) - contrary >= margin
     ):
-        return "promote" if age >= veto_seconds else "wait"
+        return "promote" if age >= veto_seconds and settled() else "wait"
     return "evaporate" if expired or exhausted else "wait"
 
 
