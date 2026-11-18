@@ -22,8 +22,10 @@ from pathlib import Path
 from typing import Any
 
 from .candidates import (
+    ABSTAIN_AGAINST,
     CANDIDATE_PREFIX,
     CLOSE_MARK,
+    MARGIN,
     PLANNED_LABEL,
     POST_MARK,
     PROPOSAL_PREFIX,
@@ -459,6 +461,8 @@ def tend_candidates(
     no_evidence_neutral: bool = False,
     observation_key: Callable[[dict[str, Any]], str | None] | None = None,
     settling_seconds: int = 0,
+    margin: int = MARGIN,
+    abstain_against: bool = ABSTAIN_AGAINST,
     answered: dict[str, list[str]] | None = None,
     attempts: dict[str, int] | None = None,
     artifacts: list[dict[str, Any]] | None = None,
@@ -499,6 +503,15 @@ def tend_candidates(
         Labels a proposal-born task carries.
     veto_seconds, evaporation_seconds, declines_needed, settling_seconds
         The rule's knobs; see :func:`marcus_toolkit.candidates.decide`.
+    margin : int
+        How far supporters must exceed contrary evidence to promote. The
+        default is the shipped rule, "supporters outnumber objectors".
+    abstain_against : bool
+        Whether a ``NO EVIDENCE:`` answer counts as contrary evidence when
+        deciding a promotion. Off by default. This is a separate question from
+        ``no_evidence_neutral`` below, which decides whether an abstention
+        counts as a *decline* toward evaporation; a caller can set either
+        without the other.
     views : Optional[Dict[str, Dict[str, Any]]]
         The view tally from :func:`marcus_toolkit.views.tally`; when given,
         declines evaporate and seconds do not.
@@ -641,6 +654,8 @@ def tend_candidates(
             now,
             veto_seconds=veto,
             settling_seconds=settling_seconds,
+            margin=margin,
+            abstain_against=abstain_against,
             **window,
             **extra,
         )
